@@ -17,6 +17,7 @@ import { CashRiseLogo } from "@/components/cashrise-logo"
 import { LanguageSwitcher } from "@/components/language-switcher"
 import { useLanguage } from "@/components/language-provider"
 import { NotificationBell } from "@/components/notification-bell"
+import { MobileBottomNav } from "@/components/mobile-bottom-nav"
 
 export function DashboardHeader() {
   const { t } = useLanguage()
@@ -483,6 +484,7 @@ export function DashboardHeader() {
           setShowVerificationPrompt(false)
         }}
       />
+      <MobileBottomNav />
     </>
   )
 }

@@ -288,6 +288,9 @@
   body {
     background-color: var(--background);
     color: var(--foreground);
+    font-size: clamp(14px, 1.7vw, 16px);
+    text-size-adjust: 100%;
+    -webkit-text-size-adjust: 100%;
   }
   h1, h2, h3, h4, h5, h6 {
     font-family: var(--font-display);
@@ -304,5 +307,24 @@
 
   [data-slot="button"] {
     border-radius: 999px;
+    min-height: 44px;
+  }
+
+  input,
+  select,
+  textarea,
+  button,
+  a {
+    touch-action: manipulation;
+  }
+}
+
+@media (max-width: 767px) {
+  body:has([data-mobile-app-nav]) {
+    padding-bottom: calc(4.75rem + env(safe-area-inset-bottom));
+  }
+
+  .container {
+    max-width: 480px;
   }
 }

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
 import { createNotificationAndPush } from "@/lib/push-server"
+import { getAuthenticatedUser } from "@/lib/server-auth"
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -48,6 +49,15 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    const authenticatedUser = await getAuthenticatedUser(request)
+
+    if (authenticatedUser && authenticatedUser.id !== userId) {
+      return NextResponse.json(
+        { success: false, error: "Profile user mismatch" },
+        { status: 403 }
+      )
+    }
+
     const { data: authUser, error: authError } = await supabase.auth.admin.getUserById(userId)
     if (authError || !authUser?.user) {
       return NextResponse.json(
@@ -55,8 +65,6 @@ export async function POST(request: NextRequest) {
         { status: 404 }
       )
     }
-
-    const authEmail = authUser.user.email || email || null
 
     const { data: existingUser, error: existingError } = await supabase
       .from("users")
@@ -70,6 +78,19 @@ export async function POST(request: NextRequest) {
         { status: 500 }
       )
     }
+
+    if (!authenticatedUser) {
+      const createdAt = authUser.user.created_at ? new Date(authUser.user.created_at).getTime() : 0
+      const isRecentAuthUser = createdAt > 0 && Date.now() - createdAt < 10 * 60 * 1000
+      if (!isRecentAuthUser || existingUser) {
+        return NextResponse.json(
+          { success: false, error: "Authentication required" },
+          { status: 401 }
+        )
+      }
+    }
+
+    const authEmail = authUser.user.email || email || null
 
     const referralCodeForUser =
       existingUser?.referral_code ||
@@ -104,7 +125,7 @@ export async function POST(request: NextRequest) {
     }
 
     if (referrerId) {
-      userProfile.referred_by = cleanReferralCode
+      userProfile.referred_by = referrerId
     }
 
     const { error: upsertError } = await supabase

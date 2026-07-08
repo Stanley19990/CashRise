@@ -9,9 +9,8 @@ import { MachineMarketplace } from "@/components/machine-marketplace"
 import { MyMachines } from "@/components/my-machines"
 import { EarningsChart } from "@/components/earnings-chart"
 import { FloatingParticles } from "@/components/floating-particles"
-import { Toaster, toast } from "sonner"
+import { Toaster } from "sonner"
 import { supabase } from "@/lib/supabase"
-import { Button } from "@/components/ui/button"
 import PromoModal from "@/components/PromoModal"
 import WeeklyReferralModal from "@/components/WeeklyReferralModal"
 import { firstRelation, formatDate, formatNumber, toNumber } from "@/lib/safe-data"
@@ -47,7 +46,6 @@ export default function DashboardPage() {
     machinesCount: 0
   })  
   const [earningsHistory, setEarningsHistory] = useState<any[]>([])
-  const [calculatingEarnings, setCalculatingEarnings] = useState(false)
 
   // Refresh function for child components
   const refreshDashboard = () => {
@@ -76,11 +74,14 @@ export default function DashboardPage() {
   useEffect(() => {
     if (!user || repairTriggered) return
     setRepairTriggered(true)
-    fetch("/api/machines/repair", {
+    supabase.auth.getSession().then(({ data: sessionData }) => fetch("/api/machines/repair", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        ...(sessionData.session?.access_token ? { Authorization: `Bearer ${sessionData.session.access_token}` } : {})
+      },
       body: JSON.stringify({ userId: user.id })
-    }).catch(() => null)
+    })).catch(() => null)
   }, [user, repairTriggered])
 
   // Fetch referrals
@@ -155,93 +156,25 @@ export default function DashboardPage() {
     }
   }
 
-  // Manual earnings calculation
-  const handleManualEarningsCalculation = async () => {
+  const fetchEarningsHistory = async () => {
     if (!user) return
-    setCalculatingEarnings(true)
-    
+
     try {
-      const { data: userMachines, error } = await supabase
-        .from('user_machines')
-        .select(`
-          id,
-          machine_type_id,
-          machine_types (
-            daily_earnings,
-            monthly_earnings,
-            name
-          )
-        `)
-        .eq('user_id', user.id)
-        .eq('is_active', true)
+      const { data, error } = await supabase
+        .from("transactions")
+        .select("id, amount, description, created_at, metadata")
+        .eq("user_id", user.id)
+        .eq("type", "mining_earnings")
+        .eq("status", "completed")
+        .order("created_at", { ascending: false })
+        .limit(5)
 
       if (error) throw error
-
-      if (!userMachines || userMachines.length === 0) {
-        toast.info("No active machines to calculate earnings for")
-        return
-      }
-
-      let totalEarnings = 0
-      const earningsDetails = []
-
-      for (const userMachine of userMachines) {
-        const machineData = firstRelation<any>((userMachine as any).machine_types)
-        
-        const dailyEarning = toNumber(machineData?.daily_earnings)
-        totalEarnings += dailyEarning
-        
-        earningsDetails.push({
-          machineId: (userMachine as any).machine_type_id,
-          machineName: machineData?.name || 'Unknown Machine',
-          earnings: dailyEarning
-        })
-
-        await supabase
-          .from('earnings')
-          .insert({
-            user_id: user.id,
-            machine_id: (userMachine as any).id,
-            amount: dailyEarning,
-            earned_at: new Date().toISOString(),
-            type: 'daily_earnings'
-          })
-      }
-
-      const { data: userData, error: fetchError } = await supabase
-        .from('users')
-        .select('ed_balance, total_earned')
-        .eq('id', user.id)
-        .single()
-
-      if (fetchError) throw fetchError
-
-      const currentEdBalance = userData?.ed_balance || 0
-      const currentTotalEarned = userData?.total_earned || 0
-
-      const { error: updateError } = await supabase
-        .from('users')
-        .update({ 
-          ed_balance: currentEdBalance + totalEarnings,
-          total_earned: currentTotalEarned + totalEarnings
-        })
-        .eq('id', user.id)
-
-      if (updateError) throw updateError
-
-      toast.success(`💰 Earned ${totalEarnings} XAF from ${earningsDetails.length} machines!`)
-      refreshDashboard()
-
-    } catch (error: any) {
-      console.error('Manual earnings error:', error)
-      toast.error('Failed to calculate earnings: ' + (error.message || 'Unknown error'))
-    } finally {
-      setCalculatingEarnings(false)
+      setEarningsHistory(data || [])
+    } catch (error) {
+      console.error("Earnings history fetch error:", error)
+      setEarningsHistory([])
     }
-  }
-
-  const fetchEarningsHistory = async () => {
-    setEarningsHistory([])
   }
 
   if (loading) {
@@ -281,17 +214,6 @@ export default function DashboardPage() {
             <WalletOverview />
           </div>
 
-          {/* Manual Earnings Calculation Button */}
-          <div className="flex justify-center">
-            <Button 
-              onClick={handleManualEarningsCalculation}
-              disabled={calculatingEarnings}
-              className="cr-button px-8 py-3 text-lg font-bold text-slate-950"
-            >
-              {calculatingEarnings ? "🔄 Calculating..." : "💰 Calculate Daily Earnings"}
-            </Button>
-          </div>
-
           <div className="space-y-6 lg:space-y-8">
             <MachineMarketplace onPurchaseSuccess={refreshDashboard} />
 
@@ -302,14 +224,14 @@ export default function DashboardPage() {
                 <div className="cr-glass rounded-2xl p-6">
                   <h3 className="font-bold text-cyan-200 text-lg mb-4">Recent Earnings</h3>
                   {earningsHistory.length === 0 ? (
-                    <p className="text-slate-400">No earnings recorded yet. Click "Calculate Daily Earnings" to start earning!</p>
+                    <p className="text-slate-400">No earnings recorded yet. Claim from an active machine once its 24-hour cycle is complete.</p>
                   ) : (
                     <div className="space-y-3">
                       {earningsHistory.map((earning) => (
                         <div key={earning.id} className="flex items-center justify-between p-3 bg-slate-900/60 rounded-xl border border-cyan-400/10">
                           <div>
-                            <p className="text-white font-medium">{earning.machine?.name || 'Machine'}</p>
-                            <p className="text-slate-400 text-sm">{formatDate(earning.earned_at)}</p>
+                            <p className="text-white font-medium">{earning.metadata?.machine_name || earning.description || 'Machine claim'}</p>
+                            <p className="text-slate-400 text-sm">{formatDate(earning.created_at)}</p>
                           </div>
                           <div className="text-right">
                             <p className="text-green-400 font-bold">+{formatNumber(earning.amount)} XAF</p>

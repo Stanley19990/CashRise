@@ -3,6 +3,7 @@ import { createClient } from "@supabase/supabase-js"
 import { ensureFapshiTransaction, extractFapshiStatus, normalizeFapshiStatus } from "@/lib/fapshi-payments"
 import { fulfillMachinePurchase } from "@/lib/payment-fulfillment"
 import { createNotificationAndPush } from "@/lib/push-server"
+import { requireAuthenticatedUser } from "@/lib/server-auth"
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -13,6 +14,9 @@ const FAPSHI_BASE_URL = process.env.FAPSHI_BASE_URL || process.env.FAPSHI_ENVIRO
 
 export async function POST(request: NextRequest) {
   try {
+    const auth = await requireAuthenticatedUser(request)
+    if (auth.response) return auth.response
+
     const { transId } = await request.json()
 
     if (!transId) {
@@ -53,6 +57,7 @@ export async function POST(request: NextRequest) {
       .from("transactions")
       .select("id, user_id, external_id, metadata, created_at")
       .eq("fapshi_trans_id", transId)
+      .eq("user_id", auth.user.id)
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle()
@@ -63,6 +68,10 @@ export async function POST(request: NextRequest) {
 
     if (!transaction) {
       return NextResponse.json({ success: false, error: "Transaction not found" }, { status: 404 })
+    }
+
+    if (transaction.user_id !== auth.user.id) {
+      return NextResponse.json({ success: false, error: "Transaction user mismatch" }, { status: 403 })
     }
 
     await supabase

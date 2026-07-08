@@ -11,6 +11,12 @@ const urlBase64ToUint8Array = (base64String: string) => {
   return outputArray
 }
 
+const getAccessToken = async () => {
+  const { supabase } = await import("@/lib/supabase")
+  const { data } = await supabase.auth.getSession()
+  return data.session?.access_token || null
+}
+
 export const supportsPushNotifications = () => {
   return (
     typeof window !== "undefined" &&
@@ -44,9 +50,13 @@ export async function enablePushNotifications(userId: string, language: string) 
       applicationServerKey: urlBase64ToUint8Array(publicKey)
     }))
 
+  const accessToken = await getAccessToken()
   const response = await fetch("/api/notifications/subscribe", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {})
+    },
     body: JSON.stringify({
       userId,
       subscription,

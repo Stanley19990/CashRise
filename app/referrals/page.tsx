@@ -31,6 +31,7 @@ export default function ReferralsPage() {
   const [pageLoading, setPageLoading] = useState(true)
   const [copied, setCopied] = useState(false)
   const [linkCopied, setLinkCopied] = useState(false)
+  const [purchasedReferrals, setPurchasedReferrals] = useState<Record<string, boolean>>({})
 
   const REFERRAL_BONUS = 1000
 
@@ -57,6 +58,39 @@ export default function ReferralsPage() {
     setPageLoading(true)
     try {
       console.log("🔄 Loading referral data for user:", user.id)
+      const { data: sessionData } = await supabase.auth.getSession()
+      const statsResponse = await fetch("/api/referrals/stats", {
+        headers: {
+          ...(sessionData.session?.access_token ? { Authorization: `Bearer ${sessionData.session.access_token}` } : {})
+        }
+      }).catch(() => null)
+
+      if (statsResponse?.ok) {
+        const statsResult = await statsResponse.json()
+        if (statsResult?.success) {
+          const referrals = statsResult.referrals || []
+          const totalReferrals = referrals.length
+          const totalBonusEarned = referrals.reduce((sum: number, r: any) => sum + toNumber(r.bonus), 0)
+          const pendingReferrals = referrals.filter((r: any) => toNumber(r.bonus) === 0).length
+          const purchasedMap: Record<string, boolean> = {}
+
+          referrals.forEach((referral: any) => {
+            if (referral.referred_id && referral.hasPurchased) {
+              purchasedMap[referral.referred_id] = true
+            }
+          })
+
+          setReferralCode(statsResult.referralCode || "")
+          setPurchasedReferrals(purchasedMap)
+          setReferralStats({
+            totalReferrals,
+            totalBonusEarned,
+            pendingReferrals,
+            referrals
+          })
+          return
+        }
+      }
 
       const { data: userData, error: userError } = await supabase
         .from('users')
@@ -117,6 +151,25 @@ export default function ReferralsPage() {
         const totalReferrals = referrals?.length || 0
         const totalBonusEarned = referrals?.reduce((sum: number, r: any) => sum + toNumber(r.bonus), 0) || 0
         const pendingReferrals = referrals?.filter((r: any) => toNumber(r.bonus) === 0).length || 0
+        const referredIds = (referrals || []).map((r: any) => r.referred_id).filter(Boolean)
+        const purchasedMap: Record<string, boolean> = {}
+
+        if (referredIds.length > 0) {
+          const { data: purchasedMachines, error: purchasedError } = await supabase
+            .from("user_machines")
+            .select("user_id")
+            .in("user_id", referredIds)
+
+          if (purchasedError) {
+            console.error("Error fetching referral purchase status:", purchasedError)
+          } else {
+            ;(purchasedMachines || []).forEach((machine: any) => {
+              if (machine.user_id) purchasedMap[machine.user_id] = true
+            })
+          }
+        }
+
+        setPurchasedReferrals(purchasedMap)
 
         setReferralStats({
           totalReferrals,
@@ -178,10 +231,10 @@ export default function ReferralsPage() {
   }
 
   const getReferralStatus = (referral: any) => {
-    if (toNumber(referral.bonus) > 0) {
+    if (toNumber(referral.bonus) > 0 || purchasedReferrals[referral.referred_id]) {
       return { 
         status: 'completed', 
-        text: 'Bonus Paid', 
+        text: toNumber(referral.bonus) > 0 ? 'Bonus Paid' : 'Purchased', 
         color: 'bg-green-500/20 text-green-400', 
         icon: CheckCircle 
       }
@@ -347,9 +400,16 @@ export default function ReferralsPage() {
                                   <td className="py-2 sm:py-3 px-2 sm:px-4">
                                     <div className="flex items-center space-x-1 sm:space-x-2">
                                       <StatusIcon className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
-                                      <span className={`px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full text-xs font-medium ${statusInfo.color} whitespace-nowrap`}>
-                                        {statusInfo.text}
-                                      </span>
+                                      <div>
+                                        <span className={`px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full text-xs font-medium ${statusInfo.color} whitespace-nowrap`}>
+                                          {statusInfo.text}
+                                        </span>
+                                        {referral.purchasedAt && (
+                                          <p className="mt-1 text-[10px] text-slate-500">
+                                            Purchased {formatDate(referral.purchasedAt)}
+                                          </p>
+                                        )}
+                                      </div>
                                     </div>
                                   </td>
                                   <td className="py-2 sm:py-3 px-2 sm:px-4">

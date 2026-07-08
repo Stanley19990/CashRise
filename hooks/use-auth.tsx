@@ -124,9 +124,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Step 4: Create user profile + referral record via server (bypasses RLS)
       try {
         console.log("📝 Creating user profile via API...")
+        const session = data.session || (await supabase.auth.getSession()).data.session
         const profileResponse = await fetch("/api/auth/create-profile", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {})
+          },
           body: JSON.stringify({
             userId: data.user.id,
             email: data.user.email,

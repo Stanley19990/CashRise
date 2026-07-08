@@ -143,14 +143,14 @@ export async function processReferralBonusForMachine(
   userId: string,
   machineId: string
 ) {
-  const referral = await findOrCreateReferral(supabase, userId)
+  let referral = await findOrCreateReferral(supabase, userId)
 
   if (!referral?.id || !referral?.referrer_id) {
     return { paid: false, message: "No referral found" }
   }
 
   const referrerId = referral.referrer_id
-  const bonusExternalId = `ref_bonus_${referral.id}_${userId}_${machineId}`
+  const bonusExternalId = `ref_bonus_${referral.id}_${userId}_first_machine`
 
   const { data: existingByExternalId } = await supabase
     .from("transactions")
@@ -165,13 +165,30 @@ export async function processReferralBonusForMachine(
     .select("id")
     .eq("user_id", referrerId)
     .eq("type", "referral_bonus")
-    .eq("metadata->>machine_id", machineId)
     .eq("metadata->>referred_user_id", userId)
     .maybeSingle()
 
-  if (existingByExternalId || existingByMetadata) {
+  if (existingByExternalId || existingByMetadata || (referral.bonus || 0) > 0) {
     return { paid: false, message: "Referral bonus already paid" }
   }
+
+  const { data: lockedReferral, error: lockError } = await supabase
+    .from("referrals")
+    .update({
+      status: "processing",
+      reward_notes: `Processing first machine bonus for machine ${machineId}`
+    })
+    .eq("id", referral.id)
+    .in("status", ["pending", "active"])
+    .or("bonus.is.null,bonus.eq.0")
+    .select("*")
+    .maybeSingle()
+
+  if (lockError || !lockedReferral) {
+    return { paid: false, message: "Referral bonus already being processed or already paid" }
+  }
+
+  referral = lockedReferral
 
   const { data: referrer, error: referrerError } = await supabase
     .from("users")
@@ -181,6 +198,7 @@ export async function processReferralBonusForMachine(
 
   if (referrerError || !referrer) {
     console.error("Referrer fetch failed:", referrerError)
+    await supabase.from("referrals").update({ status: "pending" }).eq("id", referral.id)
     return { paid: false, message: "Referrer not found" }
   }
 
@@ -194,17 +212,18 @@ export async function processReferralBonusForMachine(
 
   if (walletError) {
     console.error("Referral wallet credit failed:", walletError)
+    await supabase.from("referrals").update({ status: "pending" }).eq("id", referral.id)
     return { paid: false, message: walletError.message }
   }
-
-  const accumulatedBonus = (referral.bonus || 0) + REFERRAL_BONUS_XAF
 
   await supabase
     .from("referrals")
     .update({
-      bonus: accumulatedBonus,
+      bonus: REFERRAL_BONUS_XAF,
       status: "active",
-      completed_at: new Date().toISOString()
+      completed_at: new Date().toISOString(),
+      reward_applied_at: new Date().toISOString(),
+      reward_notes: "Referral first machine bonus paid"
     })
     .eq("id", referral.id)
 
@@ -231,7 +250,7 @@ export async function processReferralBonusForMachine(
   await createNotificationAndPush(supabase, {
     user_id: referrerId,
     title: "Referral Bonus Earned",
-    message: `You earned ${REFERRAL_BONUS_XAF.toLocaleString()} XAF because your referral purchased a machine.`,
+    message: `You earned ${REFERRAL_BONUS_XAF.toLocaleString()} XAF because your referral purchased their first machine.`,
     type: "referral_bonus",
     action_url: "/referrals",
     related_id: referral.id.toString(),

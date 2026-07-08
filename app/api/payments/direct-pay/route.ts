@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { createNotificationAndPush } from '@/lib/push-server'
+import { requireAuthenticatedUser } from '@/lib/server-auth'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -20,14 +21,18 @@ const getDiscountedPrice = (price: number) => {
 
 export async function POST(request: NextRequest) {
   try {
+    const auth = await requireAuthenticatedUser(request)
+    if (auth.response) return auth.response
+
     const { 
       amount, 
       machineId, 
-      userId, 
+      userId: requestedUserId, 
       machineName, 
       phone,
       medium
     } = await request.json()
+    const userId = auth.user.id
     
     console.log('💰 Payment request received:', { 
       amount, 
@@ -37,10 +42,17 @@ export async function POST(request: NextRequest) {
     })
 
     // Validate required fields
-    if (!amount || !machineId || !userId || !phone) {
+    if (!amount || !machineId || !phone) {
       return NextResponse.json(
         { success: false, error: 'Missing required fields' },
         { status: 400 }
+      )
+    }
+
+    if (requestedUserId && requestedUserId !== userId) {
+      return NextResponse.json(
+        { success: false, error: 'Payment user mismatch' },
+        { status: 403 }
       )
     }
 

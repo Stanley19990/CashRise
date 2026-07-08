@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { fulfillMachinePurchase } from '@/lib/payment-fulfillment'
+import { requireAuthenticatedUser } from '@/lib/server-auth'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -9,10 +10,14 @@ const supabase = createClient(
 
 export async function POST(request: NextRequest) {
   try {
-    const { userId } = await request.json()
+    const auth = await requireAuthenticatedUser(request)
+    if (auth.response) return auth.response
 
-    if (!userId) {
-      return NextResponse.json({ error: 'User ID required' }, { status: 400 })
+    const { userId: requestedUserId } = await request.json()
+    const userId = auth.user.id
+
+    if (requestedUserId && requestedUserId !== userId) {
+      return NextResponse.json({ success: false, error: 'Repair user mismatch' }, { status: 403 })
     }
 
     console.log('🔧 Running repair for user:', userId)

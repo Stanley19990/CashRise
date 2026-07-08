@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { createNotificationAndPush } from '@/lib/push-server'
+import { requireAuthenticatedUser } from '@/lib/server-auth'
 
 // Initialize Supabase client with service role key
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
@@ -16,15 +17,26 @@ export async function POST(request: NextRequest) {
   console.log('🔧 Claim earnings API called')
   
   try {
+    const auth = await requireAuthenticatedUser(request)
+    if (auth.response) return auth.response
+
     const body = await request.json()
-    const { userMachineId, userId } = body
+    const { userMachineId, userId: requestedUserId } = body
+    const userId = auth.user.id
 
     console.log('💰 Claim earnings request:', { userMachineId, userId })
 
-    if (!userMachineId || !userId) {
+    if (!userMachineId) {
       return NextResponse.json(
-        { success: false, error: 'Missing required fields: userMachineId and userId' },
+        { success: false, error: 'Missing required field: userMachineId' },
         { status: 400 }
+      )
+    }
+
+    if (requestedUserId && requestedUserId !== userId) {
+      return NextResponse.json(
+        { success: false, error: 'Claim user mismatch' },
+        { status: 403 }
       )
     }
 

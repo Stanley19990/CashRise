@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label"
 import { CreditCard, Loader2, Phone, Smartphone, AlertCircle } from "lucide-react"
 import { toast } from "sonner"
 import { CashRiseLogo } from "@/components/cashrise-logo"
+import { supabase } from "@/lib/supabase"
 
 export function PaymentModal({ open, onOpenChange, machine, user, onPaymentSuccess }) {
   const [processing, setProcessing] = useState(false)
@@ -69,11 +70,14 @@ export function PaymentModal({ open, onOpenChange, machine, user, onPaymentSucce
 
     try {
       const formattedPhone = formatPhoneForAPI(phone)
+      const { data: sessionData } = await supabase.auth.getSession()
+      const accessToken = sessionData?.session?.access_token
       
       const response = await fetch('/api/payments/direct-pay', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
         },
         body: JSON.stringify({
           amount: finalPrice,

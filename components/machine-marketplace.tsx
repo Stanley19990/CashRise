@@ -107,11 +107,14 @@ export function MachineMarketplace({ onPurchaseSuccess }: MachineMarketplaceProp
       }
       if (!repairRanRef.current) {
         repairRanRef.current = true
-        fetch("/api/machines/repair", {
+        supabase.auth.getSession().then(({ data: sessionData }) => fetch("/api/machines/repair", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            ...(sessionData.session?.access_token ? { Authorization: `Bearer ${sessionData.session.access_token}` } : {})
+          },
           body: JSON.stringify({ userId: user.id })
-        })
+        }))
           .then(() => fetchUserMachines())
           .catch(() => null)
       }
@@ -120,11 +123,15 @@ export function MachineMarketplace({ onPurchaseSuccess }: MachineMarketplaceProp
 
   useEffect(() => {
     if (!user || !activePaymentTransId) return
-    const handleVisibility = () => {
+    const handleVisibility = async () => {
       if (document.visibilityState === "visible") {
+        const { data: sessionData } = await supabase.auth.getSession()
         fetch('/api/payments/reconcile', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            ...(sessionData.session?.access_token ? { Authorization: `Bearer ${sessionData.session.access_token}` } : {})
+          },
           body: JSON.stringify({ transId: activePaymentTransId })
         }).catch(() => null)
       }
@@ -207,9 +214,13 @@ export function MachineMarketplace({ onPurchaseSuccess }: MachineMarketplaceProp
       let paymentUserId = transaction?.user_id || user.id
 
       if (!paymentStatus || paymentStatus === 'pending' || paymentStatus === 'created') {
+        const { data: sessionData } = await supabase.auth.getSession()
         const reconcileResponse = await fetch('/api/payments/reconcile', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            ...(sessionData.session?.access_token ? { Authorization: `Bearer ${sessionData.session.access_token}` } : {})
+          },
           body: JSON.stringify({ transId })
         }).catch(() => null)
 
@@ -234,9 +245,13 @@ export function MachineMarketplace({ onPurchaseSuccess }: MachineMarketplaceProp
         if (pendingStorageKey) localStorage.removeItem(pendingStorageKey)
 
         // Ensure machine is present even if webhook is delayed
+        const { data: sessionData } = await supabase.auth.getSession()
         await fetch("/api/machines/repair", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            ...(sessionData.session?.access_token ? { Authorization: `Bearer ${sessionData.session.access_token}` } : {})
+          },
           body: JSON.stringify({ userId: paymentUserId })
         }).catch(() => null)
 

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
+import { requireAuthenticatedUser } from "@/lib/server-auth"
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -8,10 +9,18 @@ const supabase = createClient(
 
 export async function POST(request: NextRequest) {
   try {
-    const { userId, subscription, language } = await request.json()
+    const auth = await requireAuthenticatedUser(request)
+    if (auth.response) return auth.response
+
+    const { userId: requestedUserId, subscription, language } = await request.json()
+    const userId = auth.user.id
 
     if (!userId || !subscription?.endpoint || !subscription?.keys?.p256dh || !subscription?.keys?.auth) {
       return NextResponse.json({ success: false, error: "Invalid push subscription" }, { status: 400 })
+    }
+
+    if (requestedUserId && requestedUserId !== userId) {
+      return NextResponse.json({ success: false, error: "Subscription user mismatch" }, { status: 403 })
     }
 
     const { error } = await supabase

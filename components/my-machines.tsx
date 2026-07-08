@@ -85,11 +85,14 @@ export function MyMachines({ onRefresh }: MyMachinesProps) {
   useEffect(() => {
     if (!user || repairRanRef.current) return
     repairRanRef.current = true
-    fetch("/api/machines/repair", {
+    supabase.auth.getSession().then(({ data: sessionData }) => fetch("/api/machines/repair", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        ...(sessionData.session?.access_token ? { Authorization: `Bearer ${sessionData.session.access_token}` } : {})
+      },
       body: JSON.stringify({ userId: user.id })
-    })
+    }))
       .then(() => loadUserMachines())
       .catch(() => null)
   }, [user])
@@ -184,11 +187,14 @@ export function MyMachines({ onRefresh }: MyMachinesProps) {
     
     try {
       console.log('🔄 Claiming earnings for machine:', machineId)
+      const { data: sessionData } = await supabase.auth.getSession()
+      const accessToken = sessionData?.session?.access_token
       
       const response = await fetch('/api/machines/claim-earnings', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
         },
         body: JSON.stringify({
           userMachineId: machineId,
