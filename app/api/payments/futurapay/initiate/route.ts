@@ -44,8 +44,19 @@ const encryptPayload = (payload: Record<string, unknown>, merchantKey: string, a
   }
 }
 
-const makeCustomerTransactionId = () => {
-  return `${Date.now()}${crypto.randomInt(100, 999)}`
+const makeCustomerTransactionId = async (supabase: ReturnType<typeof createServiceClient>) => {
+  for (let attempt = 0; attempt < 10; attempt++) {
+    const candidate = crypto.randomInt(10000000, 100000000).toString()
+    const { data } = await supabase
+      .from("transactions")
+      .select("id")
+      .eq("external_id", candidate)
+      .maybeSingle()
+
+    if (!data) return candidate
+  }
+
+  throw new Error("Unable to generate payment reference. Please try again.")
 }
 
 const normalizeCheckoutPhone = (phone: string, country: ReturnType<typeof normalizeCountry>) => {
@@ -102,7 +113,7 @@ export async function POST(request: NextRequest) {
     const amountXAF = convertToXAF(amount, currency)
     const transactionType = body.type || "deposit"
     const transactionAmount = transactionType === "machine_purchase" ? -Math.abs(amountXAF) : amountXAF
-    const customerTransactionId = makeCustomerTransactionId()
+    const customerTransactionId = await makeCustomerTransactionId(supabase)
 
     const { data: transaction, error: txError } = await supabase
       .from("transactions")
@@ -155,7 +166,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       transactionId: customerTransactionId,
-      widgetUrl: `${config.widgetBaseUrl}?${params.toString()}`
+      widgetUrl: `${config.widgetBaseUrl}?${params.toString()}`,
+      encryptedQuery: params.toString()
     })
   } catch (error: any) {
     console.error("International checkout initiate error:", error)

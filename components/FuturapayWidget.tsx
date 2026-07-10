@@ -24,29 +24,21 @@ export function FuturapayWidget({
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
   const [status, setStatus] = useState("pending")
-  const [openedExternally, setOpenedExternally] = useState(false)
 
   useEffect(() => {
     if (!open) {
       setLoading(true)
       setError("")
       setStatus("pending")
-      setOpenedExternally(false)
     }
   }, [open])
 
   useEffect(() => {
-    if (!open || !widgetUrl || openedExternally) return
-
-    const checkoutWindow = window.open(widgetUrl, "_blank", "noopener,noreferrer")
-    if (checkoutWindow) {
-      setOpenedExternally(true)
-      setLoading(false)
-    } else {
-      setError("Your browser blocked the checkout window. Use the button below to open it.")
-      setLoading(false)
+    if (open && widgetUrl) {
+      setLoading(true)
+      setError("")
     }
-  }, [open, widgetUrl, openedExternally])
+  }, [open, widgetUrl])
 
   useEffect(() => {
     if (!open || !transactionId) return
@@ -103,7 +95,7 @@ export function FuturapayWidget({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="relative flex min-h-[320px] items-center justify-center overflow-hidden rounded-b-lg bg-slate-950 px-6 text-center">
+        <div className="relative h-[620px] overflow-hidden rounded-b-lg bg-slate-950">
           {loading && (
             <div className="absolute inset-0 z-10 flex items-center justify-center bg-slate-950">
               <Loader2 className="h-8 w-8 animate-spin text-emerald-300" />
@@ -111,22 +103,21 @@ export function FuturapayWidget({
           )}
 
           {widgetUrl ? (
-            <div className="max-w-md space-y-4">
-              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-cyan-400/10 text-cyan-200">
-                <ExternalLink className="h-7 w-7" />
-              </div>
-              <div>
-                <h3 className="text-lg font-semibold text-white">Checkout opened in a new tab</h3>
-                <p className="mt-2 text-sm text-slate-400">
-                  Choose your preferred card, wallet, crypto, or mobile payment option there. Keep this window open while we verify your payment.
-                </p>
-              </div>
-              <Button className="cr-button text-slate-950" onClick={() => window.open(widgetUrl, "_blank", "noopener,noreferrer")}>
-                Open Checkout
-              </Button>
-            </div>
+            <iframe
+              id="futurapay-widget"
+              title="Secure payment widget"
+              src={widgetUrl}
+              width="100%"
+              height="600"
+              frameBorder="0"
+              className="h-full w-full bg-white"
+              onLoad={() => setLoading(false)}
+              allow="payment *; clipboard-write"
+            />
           ) : (
-            <div className="flex h-full items-center justify-center text-slate-400">Secure checkout unavailable.</div>
+            <div className="flex h-full items-center justify-center text-slate-400">
+              Secure checkout unavailable.
+            </div>
           )}
         </div>
 
@@ -135,9 +126,21 @@ export function FuturapayWidget({
             Status: <span className="text-cyan-200">{status}</span>
             {error ? <span className="ml-2 text-red-300">{error}</span> : null}
           </p>
-          <Button variant="outline" className="cr-outline-button" onClick={() => onOpenChange(false)}>
-            Close
-          </Button>
+          <div className="flex items-center gap-2">
+            {widgetUrl ? (
+              <Button
+                variant="outline"
+                className="cr-outline-button"
+                onClick={() => window.open(widgetUrl, "_blank", "noopener,noreferrer")}
+              >
+                <ExternalLink className="mr-2 h-4 w-4" />
+                Open Tab
+              </Button>
+            ) : null}
+            <Button variant="outline" className="cr-outline-button" onClick={() => onOpenChange(false)}>
+              Close
+            </Button>
+          </div>
         </div>
       </DialogContent>
     </Dialog>
