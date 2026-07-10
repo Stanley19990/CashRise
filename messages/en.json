@@ -145,8 +145,8 @@
   },
   "payment": {
     "selectMethod": "Select Payment Method",
-    "fapshi": "Fapshi (Cameroon Mobile Money)",
-    "futurapay": "Futurapay (International)",
+    "fapshi": "Mobile Money",
+    "futurapay": "International Checkout",
     "processing": "Processing payment...",
     "success": "Payment Successful!",
     "failed": "Payment Failed",

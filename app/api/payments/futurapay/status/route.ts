@@ -18,7 +18,7 @@ export async function POST(request: NextRequest) {
     const apiKey = process.env.FUTURAPAY_API_KEY
     const siteId = process.env.FUTURAPAY_SITE_ID
     if (!apiKey || !siteId) {
-      return NextResponse.json({ success: false, error: "Missing Futurapay configuration" }, { status: 500 })
+      return NextResponse.json({ success: false, error: "International checkout is not configured yet" }, { status: 500 })
     }
 
     const response = await fetch(FUTURAPAY_STATUS_URL, {
@@ -36,7 +36,7 @@ export async function POST(request: NextRequest) {
     const data = await response.json().catch(() => ({}))
     if (!response.ok) {
       return NextResponse.json(
-        { success: false, error: data?.message || "Failed to check Futurapay status" },
+        { success: false, error: data?.message || "Failed to check payment status" },
         { status: 502 }
       )
     }
@@ -116,7 +116,7 @@ export async function POST(request: NextRequest) {
       raw: data
     })
   } catch (error: any) {
-    console.error("Futurapay status error:", error)
+    console.error("International checkout status error:", error)
     return NextResponse.json({ success: false, error: error.message || "Status check failed" }, { status: 500 })
   }
 }

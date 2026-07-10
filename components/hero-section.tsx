@@ -28,14 +28,6 @@ export function HeroSection() {
       </div>
       {/* AI Character and Holographic Data Overlays */}
       <div className="absolute inset-0 pointer-events-none">
-        {/* <div className="absolute top-1/4 right-4 md:right-8 w-48 md:w-64 h-60 md:h-80 opacity-90 z-20">
-          <img
-            src="/placeholder.svg?height=320&width=256"
-            alt="AI Assistant"
-            className="w-full h-full object-contain animate-pulse drop-shadow-2xl"
-          />
-        </div> */}
-
         <div className="absolute top-20 left-4 md:left-20 bg-emerald-500/10 backdrop-blur-sm border border-emerald-400/30 rounded-2xl p-3 md:p-4 animate-bounce z-10">
           <div className="text-emerald-200 text-xs md:text-sm font-mono">CASHFLOW SIGNAL</div>
           <div className="text-amber-300 font-bold text-sm md:text-base">+{formatMoney(48200)}</div>

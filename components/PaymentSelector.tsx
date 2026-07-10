@@ -41,16 +41,16 @@ export function PaymentSelector({
       ? [
           {
             id: "fapshi",
-            name: "Fapshi",
-            description: "Cameroon MTN Mobile Money and Orange Money",
+            name: "Mobile Money",
+            description: "MTN Mobile Money and Orange Money",
             icon: Smartphone
           }
         ]
       : []),
     {
       id: "futurapay",
-      name: "Futurapay",
-      description: "Cards, crypto, PayPal, Stripe, and international mobile money",
+      name: "International Checkout",
+      description: "Cards, wallets, crypto, and international mobile money",
       icon: CreditCard
     }
   ]
@@ -83,7 +83,7 @@ export function PaymentSelector({
 
       const result = await response.json()
       if (!response.ok || !result.success) {
-        throw new Error(result.error || "Failed to start Futurapay checkout")
+        throw new Error(result.error || "Failed to start secure checkout")
       }
 
       setWidgetUrl(result.widgetUrl)
@@ -124,7 +124,7 @@ export function PaymentSelector({
                   disabled={loading || loadingMethod !== null}
                   onClick={
                     method.id === "fapshi"
-                      ? onFapshiSelect || (() => toast.info("Fapshi is available for Cameroon machine purchases. Use Futurapay for wallet deposits."))
+                      ? onFapshiSelect || (() => toast.info("Mobile Money is available for Cameroon machine purchases. Use International Checkout for wallet deposits."))
                       : startFuturapay
                   }
                 >

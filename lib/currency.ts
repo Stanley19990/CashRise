@@ -379,8 +379,8 @@ export function getAvailablePaymentMethods(country: CountryInfo) {
   const methods = [
     {
       id: "futurapay",
-      name: "Futurapay",
-      description: "Cards, crypto, PayPal, Stripe, and international mobile money",
+      name: "International Checkout",
+      description: "Cards, wallets, crypto, and international mobile money",
       available: true
     }
   ]
@@ -389,8 +389,8 @@ export function getAvailablePaymentMethods(country: CountryInfo) {
     return [
       {
         id: "fapshi",
-        name: "Fapshi",
-        description: "Cameroon MTN Mobile Money and Orange Money",
+        name: "Mobile Money",
+        description: "MTN Mobile Money and Orange Money",
         available: true
       },
       ...methods

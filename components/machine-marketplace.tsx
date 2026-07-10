@@ -6,7 +6,7 @@ import { useAuth } from "@/hooks/use-auth"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { ShoppingCart, Zap, TrendingUp, Star, Clock, DollarSign, Cpu, BarChart3, Calendar, Image as ImageIcon } from "lucide-react"
+import { ShoppingCart, Zap, TrendingUp, Star, Clock, DollarSign, Cpu, BarChart3, Calendar, CircuitBoard } from "lucide-react"
 import { toast } from "sonner"
 import { PaymentModal } from "@/components/payment-modal"
 import { supabase } from "@/lib/supabase"
@@ -39,6 +39,7 @@ export function MachineMarketplace({ onPurchaseSuccess }: MachineMarketplaceProp
   const [selectedMachine, setSelectedMachine] = useState<MachineType | null>(null)
   const [databaseMachines, setDatabaseMachines] = useState<MachineType[]>([])
   const [imagesLoaded, setImagesLoaded] = useState<Record<string, boolean>>({})
+  const [imagesFailed, setImagesFailed] = useState<Record<string, boolean>>({})
   const [userMachines, setUserMachines] = useState<string[]>([])
 
   // ✅ FIX: Track active payment for status polling
@@ -61,11 +62,14 @@ export function MachineMarketplace({ onPurchaseSuccess }: MachineMarketplaceProp
         setDatabaseMachines(data)
         // Preload images
         data.forEach(machine => {
-          if (machine.image_url) {
+          if (isUsableMachineImage(machine.image_url)) {
             const img = new Image()
             img.src = machine.image_url
             img.onload = () => {
               setImagesLoaded(prev => ({ ...prev, [machine.id]: true }))
+            }
+            img.onerror = () => {
+              setImagesFailed(prev => ({ ...prev, [machine.id]: true }))
             }
           }
         })
@@ -346,7 +350,7 @@ export function MachineMarketplace({ onPurchaseSuccess }: MachineMarketplaceProp
 
   // ✅ FIX: Handle payment success with polling
   const handlePaymentSuccess = async (transId: string, externalId: string, provider: "fapshi" | "futurapay" = "fapshi") => {
-    console.log('💳 Payment initiated:', { transId, externalId })
+    console.log('Payment initiated:', { transId, externalId })
     
     setPaymentModalOpen(false)
     setSelectedMachine(null)
@@ -358,7 +362,7 @@ export function MachineMarketplace({ onPurchaseSuccess }: MachineMarketplaceProp
       if (onPurchaseSuccess) {
         onPurchaseSuccess()
       }
-      toast.success("Purchase confirmed! Your machine will appear once Futurapay finishes processing.")
+      toast.success("Purchase confirmed! Your machine will appear once payment processing finishes.")
       return
     }
 
@@ -371,7 +375,7 @@ export function MachineMarketplace({ onPurchaseSuccess }: MachineMarketplaceProp
     }
 
     toast.success("Payment request sent! Please complete on your phone.")
-    toast.info("📱 We'll automatically update when payment is confirmed")
+    toast.info("We'll automatically update when payment is confirmed")
     
     // Start polling for payment status
     setActivePaymentTransId(transId)
@@ -382,6 +386,10 @@ export function MachineMarketplace({ onPurchaseSuccess }: MachineMarketplaceProp
     const icons = [Zap, Cpu, Star, TrendingUp, DollarSign, BarChart3]
     const IconComponent = icons[index % icons.length]
     return <IconComponent className="h-8 w-8 text-white" />
+  }
+
+  const isUsableMachineImage = (imageUrl?: string) => {
+    return Boolean(imageUrl && !imageUrl.includes("/placeholder.svg"))
   }
 
   // Calculate ROI period in days
@@ -428,7 +436,7 @@ const isDiscounted = (price: number) => {
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-6">
             {databaseMachines.map((machine, index) => {
               const isImageLoaded = imagesLoaded[machine.id]
-              const hasDatabaseImage = machine.image_url
+              const hasDatabaseImage = isUsableMachineImage(machine.image_url) && !imagesFailed[machine.id]
               const gradient = getGradientClasses(machine.gradient || "blue-cyan")
               const owned = userOwnsMachine(machine.id)
               const machinePrice = toNumber(machine.price)
@@ -489,7 +497,7 @@ const isDiscounted = (price: number) => {
                         <>
                           {!isImageLoaded && (
                             <div className="absolute inset-0 bg-slate-800 animate-pulse flex items-center justify-center">
-                              <ImageIcon className="h-12 w-12 text-slate-600" />
+                              <CircuitBoard className="h-12 w-12 text-slate-600" />
                             </div>
                           )}
                           <img
@@ -499,11 +507,18 @@ const isDiscounted = (price: number) => {
                               isImageLoaded ? 'opacity-100 scale-100' : 'opacity-0 scale-95'
                             } hover:scale-110 hover:rotate-1`}
                             onLoad={() => setImagesLoaded(prev => ({ ...prev, [machine.id]: true }))}
+                            onError={() => setImagesFailed(prev => ({ ...prev, [machine.id]: true }))}
                           />
                         </>
                       ) : (
-                        <div className="w-full h-full bg-slate-800 flex items-center justify-center">
-                          <ImageIcon className="h-12 w-12 text-slate-600" />
+                        <div className="relative flex h-full w-full items-center justify-center">
+                          <div className="absolute h-[72%] w-[72%] rounded-full border border-white/20"></div>
+                          <div className="absolute h-[54%] w-[54%] rounded-full border border-white/15"></div>
+                          <div className="absolute inset-x-8 top-8 h-1 rounded-full bg-white/30 blur-sm"></div>
+                          <div className="relative flex h-28 w-28 items-center justify-center rounded-3xl border border-white/25 bg-slate-950/45 shadow-[0_0_45px_rgba(255,255,255,0.22)]">
+                            <CircuitBoard className="h-16 w-16 text-white" />
+                          </div>
+                          <div className="absolute bottom-8 left-1/2 h-10 w-32 -translate-x-1/2 rounded-full bg-black/30 blur-xl"></div>
                         </div>
                       )}
                       <div className="absolute top-3 right-3">

@@ -10,7 +10,7 @@ const getFuturapayConfig = () => {
   const env = process.env.FUTURAPAY_ENV || "sandbox"
 
   if (!merchantKey || !siteId || !apiKey) {
-    throw new Error("Missing Futurapay configuration")
+    throw new Error("International checkout is not configured yet")
   }
 
   return {
@@ -61,7 +61,7 @@ export async function POST(request: NextRequest) {
       .insert({
         user_id: auth.user.id,
         type: transactionType,
-        description: body.description || "Futurapay payment",
+        description: body.description || "Secure checkout payment",
         amount: transactionAmount,
         currency: "XAF",
         status: "pending",
@@ -118,9 +118,9 @@ export async function POST(request: NextRequest) {
       widgetUrl: `${config.widgetBaseUrl}?${params.toString()}`
     })
   } catch (error: any) {
-    console.error("Futurapay initiate error:", error)
+    console.error("International checkout initiate error:", error)
     return NextResponse.json(
-      { success: false, error: error.message || "Failed to initiate Futurapay payment" },
+      { success: false, error: error.message || "Failed to start secure checkout" },
       { status: 500 }
     )
   }

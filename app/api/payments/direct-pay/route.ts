@@ -21,7 +21,7 @@ export async function POST(request: NextRequest) {
 
     if (!process.env.FAPSHI_API_USER || !process.env.FAPSHI_API_KEY) {
       return NextResponse.json(
-        { success: false, error: 'Missing Fapshi payment configuration' },
+        { success: false, error: 'Mobile money payments are not configured yet' },
         { status: 500 }
       )
     }

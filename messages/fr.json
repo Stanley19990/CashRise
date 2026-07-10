@@ -145,8 +145,8 @@
   },
   "payment": {
     "selectMethod": "Choisir le mode de paiement",
-    "fapshi": "Fapshi (Mobile Money Cameroun)",
-    "futurapay": "Futurapay (International)",
+    "fapshi": "Mobile Money",
+    "futurapay": "Paiement international",
     "processing": "Paiement en cours...",
     "success": "Paiement réussi !",
     "failed": "Paiement échoué",

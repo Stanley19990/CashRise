@@ -13,7 +13,7 @@ export async function POST(request: NextRequest) {
     const supabase = createServiceClient()
 
     if (!process.env.FAPSHI_API_USER || !process.env.FAPSHI_API_KEY) {
-      return NextResponse.json({ success: false, error: "Missing Fapshi payment configuration" }, { status: 500 })
+      return NextResponse.json({ success: false, error: "Mobile money payments are not configured yet" }, { status: 500 })
     }
 
     const { transId } = await request.json()
