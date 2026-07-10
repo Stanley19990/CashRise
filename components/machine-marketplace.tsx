@@ -31,6 +31,17 @@ interface MachineMarketplaceProps {
   onPurchaseSuccess?: () => void;
 }
 
+const machineImageMap: Record<string, string> = {
+  "1": "/images/Generated Image September 15, 2025 - 7_42PM.png",
+  "2": "/images/Generated Image September 15, 2025 - 8_10PM.png",
+  "3": "/images/Generated Image September 16, 2025 - 1_23PM.png",
+  "4": "/images/Generated Image September 16, 2025 - 1_30PM.png",
+  "5": "/images/Generated Image September 16, 2025 - 1_56PM.png",
+  "6": "/images/Generated Image September 15, 2025 - 7_36PM.png",
+  "7": "/images/Generated Image September 16, 2025 - 1_56PM(2).png",
+  "8": "/images/Generated Image September 16, 2025 - 1_56PM(3).png"
+}
+
 export function MachineMarketplace({ onPurchaseSuccess }: MachineMarketplaceProps) {
   const { user, refreshUser } = useAuth()
   const { formatMoney } = useCurrency()
@@ -62,9 +73,10 @@ export function MachineMarketplace({ onPurchaseSuccess }: MachineMarketplaceProp
         setDatabaseMachines(data)
         // Preload images
         data.forEach(machine => {
-          if (isUsableMachineImage(machine.image_url)) {
+          const imageUrl = getMachineImageUrl(machine)
+          if (imageUrl && isUsableMachineImage(imageUrl)) {
             const img = new Image()
-            img.src = machine.image_url
+            img.src = imageUrl
             img.onload = () => {
               setImagesLoaded(prev => ({ ...prev, [machine.id]: true }))
             }
@@ -392,6 +404,11 @@ export function MachineMarketplace({ onPurchaseSuccess }: MachineMarketplaceProp
     return Boolean(imageUrl && !imageUrl.includes("/placeholder.svg"))
   }
 
+  const getMachineImageUrl = (machine: MachineType) => {
+    const configuredImage = machine.image_url?.trim()
+    return isUsableMachineImage(configuredImage) ? configuredImage : machineImageMap[String(machine.id)]
+  }
+
   // Calculate ROI period in days
   const calculateROI = (price: number, dailyEarnings: number) => {
     if (dailyEarnings === 0) return "N/A"
@@ -436,7 +453,8 @@ const isDiscounted = (price: number) => {
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-6">
             {databaseMachines.map((machine, index) => {
               const isImageLoaded = imagesLoaded[machine.id]
-              const hasDatabaseImage = isUsableMachineImage(machine.image_url) && !imagesFailed[machine.id]
+              const machineImageUrl = getMachineImageUrl(machine)
+              const hasDatabaseImage = isUsableMachineImage(machineImageUrl) && !imagesFailed[machine.id]
               const gradient = getGradientClasses(machine.gradient || "blue-cyan")
               const owned = userOwnsMachine(machine.id)
               const machinePrice = toNumber(machine.price)
@@ -501,7 +519,7 @@ const isDiscounted = (price: number) => {
                             </div>
                           )}
                           <img
-                            src={machine.image_url}
+                            src={machineImageUrl}
                             alt={machine.name}
                             className={`w-full h-full object-cover rounded-xl transition-all duration-500 ${
                               isImageLoaded ? 'opacity-100 scale-100' : 'opacity-0 scale-95'

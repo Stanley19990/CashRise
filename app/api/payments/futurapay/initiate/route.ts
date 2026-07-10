@@ -7,7 +7,8 @@ const getFuturapayConfig = () => {
   const merchantKey = process.env.FUTURAPAY_MERCHANT_KEY
   const siteId = process.env.FUTURAPAY_SITE_ID
   const apiKey = process.env.FUTURAPAY_API_KEY
-  const env = process.env.FUTURAPAY_ENV || "sandbox"
+  const env = (process.env.FUTURAPAY_ENV || "production").toLowerCase()
+  const isSandbox = ["sandbox", "test", "testing", "development", "dev"].includes(env)
 
   if (!merchantKey || !siteId || !apiKey) {
     throw new Error("International checkout is not configured yet")
@@ -18,8 +19,9 @@ const getFuturapayConfig = () => {
     siteId,
     apiKey,
     env,
-    widgetBaseUrl:
-      env === "production" ? "https://checkout.futurapay.com/widget" : "https://sandbox.futurapay.com/widget"
+    widgetBaseUrl: isSandbox
+      ? "https://stage-payment-widget.futurapay.com/widget/deposit"
+      : "https://payment-widget.futurapay.com/widget/deposit"
   }
 }
 
@@ -27,11 +29,18 @@ const encryptPayload = (payload: Record<string, unknown>, merchantKey: string, a
   const key = crypto.createHash("md5").update(`${merchantKey}${apiKey}${siteId}`).digest("hex")
   const iv = crypto.randomBytes(16)
   const cipher = crypto.createCipheriv("aes-256-cbc", Buffer.from(key, "utf8"), iv)
-  const encrypted = Buffer.concat([cipher.update(JSON.stringify(payload), "utf8"), cipher.final()])
+  const encrypted = Buffer.concat([cipher.update(JSON.stringify({
+    ...payload,
+    merchant_key: merchantKey,
+    api_key: apiKey,
+    site_id: siteId
+  }), "utf8"), cipher.final()])
+  const encryptedBase64 = encrypted.toString("base64")
 
   return {
-    iv: iv.toString("hex"),
-    payload: encrypted.toString("base64")
+    data: Buffer.from(encryptedBase64, "utf8").toString("base64"),
+    iv: iv.toString("base64"),
+    key: Buffer.from(apiKey, "utf8").toString("base64")
   }
 }
 
@@ -83,19 +92,19 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: txError.message }, { status: 500 })
     }
 
+    const displayName = body.name || auth.user.user_metadata?.full_name || auth.user.email || "CashRise User"
+    const [firstName, ...lastNameParts] = String(displayName).trim().split(/\s+/)
+    const lastName = lastNameParts.join(" ") || firstName || "User"
+
     const payload = {
-      merchant_key: config.merchantKey,
-      site_id: config.siteId,
       customer_transaction_id: customerTransactionId,
       amount,
       currency,
       country_code: country.code,
-      customer: {
-        id: auth.user.id,
-        email: auth.user.email,
-        name: body.name || auth.user.user_metadata?.full_name || auth.user.email,
-        phone: body.phone || auth.user.user_metadata?.phone || null
-      },
+      customer_first_name: firstName || "CashRise",
+      customer_last_name: lastName,
+      customer_phone: body.phone || auth.user.user_metadata?.phone || "",
+      customer_email: auth.user.email || "",
       callback_url: body.callbackUrl || `${process.env.NEXT_PUBLIC_APP_URL || ""}/wallet`,
       webhook_url: `${process.env.NEXT_PUBLIC_APP_URL || "https://cash-rise.vercel.app"}/api/webhooks/futurapay`,
       metadata: {
@@ -107,10 +116,10 @@ export async function POST(request: NextRequest) {
 
     const encrypted = encryptPayload(payload, config.merchantKey, config.apiKey, config.siteId)
     const params = new URLSearchParams({
-      site_id: config.siteId,
-      data: encrypted.payload,
+      data: encrypted.data,
       iv: encrypted.iv
     })
+    params.set("key", encrypted.key)
 
     return NextResponse.json({
       success: true,

@@ -41,10 +41,10 @@ CREATE POLICY "Users can create ad sessions" ON ad_sessions FOR INSERT WITH CHEC
 -- Insert default machine types if they don't exist
 INSERT INTO machine_types (name, price, daily_earning_rate, description, image_url) 
 SELECT * FROM (VALUES
-  ('Basic Miner', 10.00, 0.05, 'Entry-level machine perfect for beginners', NULL),
-  ('Power Miner', 25.00, 0.08, 'Enhanced mining capabilities with better returns', NULL),
-  ('Turbo Miner', 50.00, 0.12, 'High-performance machine for serious earners', NULL),
-  ('Quantum Miner', 100.00, 0.18, 'Top-tier machine with maximum earning potential', NULL),
-  ('Mega Miner', 200.00, 0.25, 'Ultimate mining machine for power users', NULL)
+  ('Basic Miner', 10.00, 0.05, 'Entry-level machine perfect for beginners', '/images/Generated Image September 15, 2025 - 7_42PM.png'),
+  ('Power Miner', 25.00, 0.08, 'Enhanced mining capabilities with better returns', '/images/Generated Image September 15, 2025 - 8_10PM.png'),
+  ('Turbo Miner', 50.00, 0.12, 'High-performance machine for serious earners', '/images/Generated Image September 16, 2025 - 1_23PM.png'),
+  ('Quantum Miner', 100.00, 0.18, 'Top-tier machine with maximum earning potential', '/images/Generated Image September 16, 2025 - 1_30PM.png'),
+  ('Mega Miner', 200.00, 0.25, 'Ultimate mining machine for power users', '/images/Generated Image September 16, 2025 - 1_56PM.png')
 ) AS new_machines(name, price, daily_earning_rate, description, image_url)
 WHERE NOT EXISTS (SELECT 1 FROM machine_types WHERE machine_types.name = new_machines.name);
