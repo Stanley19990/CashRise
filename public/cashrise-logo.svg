@@ -1,0 +1,31 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="shell" x1="56" y1="40" x2="456" y2="472" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#37C7FF"/>
+      <stop offset="0.48" stop-color="#16D9B6"/>
+      <stop offset="1" stop-color="#FFB454"/>
+    </linearGradient>
+    <linearGradient id="face" x1="112" y1="80" x2="400" y2="432" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#E9FBFF" stop-opacity="0.96"/>
+      <stop offset="0.58" stop-color="#12243A" stop-opacity="0.92"/>
+      <stop offset="1" stop-color="#07121F" stop-opacity="0.98"/>
+    </linearGradient>
+    <radialGradient id="shine" cx="0" cy="0" r="1" gradientTransform="matrix(208 272 -272 208 160 104)" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFFFFF" stop-opacity="0.95"/>
+      <stop offset="0.55" stop-color="#FFFFFF" stop-opacity="0.12"/>
+      <stop offset="1" stop-color="#FFFFFF" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="shadow" x="-96" y="-80" width="704" height="704" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="80" stdDeviation="64" flood-color="#16D9B6" flood-opacity="0.22"/>
+    </filter>
+  </defs>
+  <rect width="512" height="512" rx="118" fill="#070B13"/>
+  <rect x="40" y="40" width="432" height="432" rx="144" fill="url(#shell)" filter="url(#shadow)"/>
+  <rect x="80" y="80" width="352" height="352" rx="120" fill="url(#face)"/>
+  <rect x="80" y="80" width="352" height="352" rx="120" fill="url(#shine)"/>
+  <path d="M136 324L216 244L280 300L384 184" stroke="#F8FAFC" stroke-width="34" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M144 368H384" stroke="#37C7FF" stroke-width="26" stroke-linecap="round" opacity="0.9"/>
+  <path d="M340 184H384V228" stroke="#FFB454" stroke-width="27" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="176" cy="168" r="28" fill="#16D9B6"/>
+  <circle cx="248" cy="144" r="18" fill="#37C7FF" opacity="0.9"/>
+</svg>

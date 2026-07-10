@@ -3,8 +3,10 @@
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { safeStorageGet, safeStorageSet } from "@/lib/safe-data"
+import { useCurrency } from "@/contexts/CurrencyContext"
 
 export default function WeeklyReferralModal() {
+  const { formatMoney } = useCurrency()
   const [open, setOpen] = useState(false)
   const router = useRouter()
 
@@ -46,23 +48,23 @@ export default function WeeklyReferralModal() {
               <div className="space-y-2 text-sm sm:text-base">
                 <div className="flex justify-between items-center font-bold">
                   <span className="text-slate-200">🥇 1st Prize:</span>
-                  <span className="text-2xl text-emerald-300">500,000 XAF</span>
+                  <span className="text-2xl text-emerald-300">{formatMoney(500000)}</span>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-slate-300">🥈 2nd Prize:</span>
-                  <span className="text-xl text-cyan-300">300,000 XAF</span>
+                  <span className="text-xl text-cyan-300">{formatMoney(300000)}</span>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-slate-300">🥉 3rd Prize:</span>
-                  <span className="text-xl text-indigo-300">200,000 XAF</span>
+                  <span className="text-xl text-indigo-300">{formatMoney(200000)}</span>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-slate-400">4th Prize:</span>
-                  <span className="text-lg text-amber-300">100,000 XAF</span>
+                  <span className="text-lg text-amber-300">{formatMoney(100000)}</span>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-slate-400">5th Prize:</span>
-                  <span className="text-lg text-rose-300">50,000 XAF</span>
+                  <span className="text-lg text-rose-300">{formatMoney(50000)}</span>
                 </div>
               </div>
             </div>

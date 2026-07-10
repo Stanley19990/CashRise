@@ -10,7 +10,8 @@ import { ShoppingCart, Zap, TrendingUp, Star, Clock, DollarSign, Cpu, BarChart3,
 import { toast } from "sonner"
 import { PaymentModal } from "@/components/payment-modal"
 import { supabase } from "@/lib/supabase"
-import { asArray, formatNumber, safeStorageGet, safeStorageSet, toNumber } from "@/lib/safe-data"
+import { asArray, safeStorageGet, safeStorageSet, toNumber } from "@/lib/safe-data"
+import { useCurrency } from "@/contexts/CurrencyContext"
 
 interface MachineType {
   id: string
@@ -32,6 +33,7 @@ interface MachineMarketplaceProps {
 
 export function MachineMarketplace({ onPurchaseSuccess }: MachineMarketplaceProps) {
   const { user, refreshUser } = useAuth()
+  const { formatMoney } = useCurrency()
   const [purchasing, setPurchasing] = useState<string | null>(null)
   const [paymentModalOpen, setPaymentModalOpen] = useState(false)
   const [selectedMachine, setSelectedMachine] = useState<MachineType | null>(null)
@@ -343,11 +345,22 @@ export function MachineMarketplace({ onPurchaseSuccess }: MachineMarketplaceProp
   }
 
   // ✅ FIX: Handle payment success with polling
-  const handlePaymentSuccess = async (transId: string, externalId: string) => {
+  const handlePaymentSuccess = async (transId: string, externalId: string, provider: "fapshi" | "futurapay" = "fapshi") => {
     console.log('💳 Payment initiated:', { transId, externalId })
     
     setPaymentModalOpen(false)
     setSelectedMachine(null)
+
+    if (provider === "futurapay") {
+      setPurchasing(null)
+      await fetchUserMachines()
+      await refreshUser()
+      if (onPurchaseSuccess) {
+        onPurchaseSuccess()
+      }
+      toast.success("Purchase confirmed! Your machine will appear once Futurapay finishes processing.")
+      return
+    }
 
     if (pendingStorageKey) {
       safeStorageSet(
@@ -534,7 +547,7 @@ const isDiscounted = (price: number) => {
                           <span className="text-sm text-slate-300">Daily Earnings</span>
                         </div>
                         <span className="text-lg font-bold text-emerald-300">
-                          {formatNumber(dailyEarnings)} XAF
+                          {formatMoney(dailyEarnings)}
                         </span>
                       </div>
                       <div className="flex items-center justify-between">
@@ -543,7 +556,7 @@ const isDiscounted = (price: number) => {
                           <span className="text-sm text-slate-300">Monthly Earnings</span>
                         </div>
                         <span className="text-lg font-bold text-cyan-300">
-                          {formatNumber(monthlyEarnings)} XAF
+                          {formatMoney(monthlyEarnings)}
                         </span>
                       </div>
                       <div className="flex items-center justify-between">
@@ -562,10 +575,10 @@ const isDiscounted = (price: number) => {
 {isDiscounted(machinePrice) ? (
   <>
     <div className="text-lg text-rose-300 line-through">
-      {formatNumber(machinePrice)} XAF
+      {formatMoney(machinePrice)}
     </div>
     <div className="text-3xl font-bold text-emerald-300 mb-1">
-      {formatNumber(getDiscountedPrice(machinePrice))} XAF
+      {formatMoney(getDiscountedPrice(machinePrice))}
     </div>
     <div className="text-xs text-amber-300 font-bold animate-pulse">
       🔥 5% NEW YEAR DISCOUNT
@@ -573,7 +586,7 @@ const isDiscounted = (price: number) => {
   </>
 ) : (
   <div className="text-3xl font-bold text-white mb-1">
-    {formatNumber(machinePrice)} XAF
+    {formatMoney(machinePrice)}
   </div>
 )}
                         <div className="text-sm text-slate-400">One-time payment</div>

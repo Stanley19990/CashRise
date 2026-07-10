@@ -1,15 +1,16 @@
 "use client"
 
 import { Button } from "@/components/ui/button"
-import { Shield, LogOut } from "lucide-react"
+import { LogOut } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { CashRiseLogo } from "@/components/cashrise-logo"
+import { supabase } from "@/lib/supabase"
 
 export function AdminHeader() {
   const router = useRouter()
 
-  const handleSignOut = () => {
-    localStorage.removeItem("easy_dollars_admin")
+  const handleSignOut = async () => {
+    await supabase.auth.signOut()
     router.push("/admin/login")
   }
 

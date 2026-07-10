@@ -1,10 +1,10 @@
 import type { NextRequest } from "next/server"
-import { supabaseAdmin } from "./supabaseAdmin"
+import { createSupabaseAdmin } from "./supabaseAdmin"
 
-// Load admin emails from environment variable with fallback
-const ADMIN_EMAILS = process.env.ADMIN_EMAILS
-  ? process.env.ADMIN_EMAILS.split(",").map((email) => email.trim())
-  : ["chiastanley3@gmail.com", "chiastanleymbeng3@gmail.com"]
+const ADMIN_EMAILS = (process.env.ADMIN_EMAILS || process.env.NEXT_PUBLIC_ADMIN_EMAILS || "")
+  .split(",")
+  .map((email) => email.trim().toLowerCase())
+  .filter(Boolean)
 
 export async function verifyAdminAuth(request: NextRequest) {
   try {
@@ -13,8 +13,13 @@ export async function verifyAdminAuth(request: NextRequest) {
       return { isValid: false, error: "Missing or invalid authorization header" }
     }
 
+    if (ADMIN_EMAILS.length === 0) {
+      return { isValid: false, error: "ADMIN_EMAILS or NEXT_PUBLIC_ADMIN_EMAILS is not configured" }
+    }
+
     const token = authHeader.split(" ")[1]
 
+    const supabaseAdmin = createSupabaseAdmin()
     const {
       data: { user },
       error,
@@ -24,7 +29,7 @@ export async function verifyAdminAuth(request: NextRequest) {
       return { isValid: false, error: "Invalid token or user not found" }
     }
 
-    if (!ADMIN_EMAILS.includes(user.email || "")) {
+    if (!ADMIN_EMAILS.includes((user.email || "").toLowerCase())) {
       return { isValid: false, error: "User is not authorized as admin" }
     }
 

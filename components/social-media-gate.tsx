@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { ExternalLink, CheckCircle, Lock } from "lucide-react"
 import { toast } from "sonner"
 import { supabase } from "@/lib/supabase"
+import { useCurrency } from "@/contexts/CurrencyContext"
 
 interface SocialMediaGateProps {
   userId: string
@@ -84,6 +85,7 @@ const recordSocialMediaBonus = async (userId: string, amount: number) => {
 }
 
 export function SocialMediaGate({ userId, onComplete }: SocialMediaGateProps) {
+  const { formatMoney } = useCurrency()
   const [completed, setCompleted] = useState<Record<string, boolean>>({})
   const [loading, setLoading] = useState(false)
   const [userData, setUserData] = useState<any>(null)
@@ -177,7 +179,7 @@ export function SocialMediaGate({ userId, onComplete }: SocialMediaGateProps) {
       // ✅ RECORD THE TRANSACTION
       await recordSocialMediaBonus(userId, 500)
 
-      toast.success("🎉 Thank you! You earned 500 XAF bonus and unlocked full app access!")
+      toast.success(`Thank you! You earned ${formatMoney(500)} bonus and unlocked full app access!`)
       onComplete()
       
     } catch (error: any) {
@@ -206,7 +208,7 @@ export function SocialMediaGate({ userId, onComplete }: SocialMediaGateProps) {
             <CardTitle className="text-2xl text-white">Welcome to AI Gaming!</CardTitle>
           </div>
           <p className="text-slate-400">
-            Complete these quick steps to unlock full app access and earn 500 XAF bonus!
+            Complete these quick steps to unlock full app access and earn {formatMoney(500)} bonus!
           </p>
         </CardHeader>
 
@@ -296,7 +298,7 @@ export function SocialMediaGate({ userId, onComplete }: SocialMediaGateProps) {
               <div>
                 <p className="font-medium text-cyan-300">Completion Bonus!</p>
                 <p className="text-sm text-cyan-200/70">
-                  Complete all required steps to unlock full app access and earn 500 XAF bonus!
+                  Complete all required steps to unlock full app access and earn {formatMoney(500)} bonus!
                 </p>
               </div>
             </div>
@@ -316,7 +318,7 @@ export function SocialMediaGate({ userId, onComplete }: SocialMediaGateProps) {
             ) : (
               <>
                 <CheckCircle className="h-5 w-5 mr-2" />
-                Unlock Full App Access & Get 500 XAF Bonus
+                Unlock Full App Access & Get {formatMoney(500)} Bonus
               </>
             )}
           </Button>

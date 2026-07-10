@@ -1,10 +1,18 @@
 // app/api/referrals/claim/route.ts
 import { NextRequest, NextResponse } from 'next/server'
 import { ReferralService } from '@/lib/referral-service'
+import { requireAuthenticatedUser } from '@/lib/server-auth'
 
 export async function POST(request: NextRequest) {
   try {
+    const auth = await requireAuthenticatedUser(request)
+    if (auth.response) return auth.response
+
     const { userId, machineId } = await request.json()
+
+    if (userId !== auth.user.id) {
+      return NextResponse.json({ success: false, error: 'Referral claim user mismatch' }, { status: 403 })
+    }
 
     console.log('🎯 Processing referral bonus for user:', userId)
 

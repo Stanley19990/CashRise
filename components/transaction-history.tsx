@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { History, ArrowUpRight, ArrowDownLeft, Coins, CreditCard, Plus, Users, Zap, Gift, Share2 } from "lucide-react"
 import { formatDate, formatDateTime, formatNumber, toNumber } from "@/lib/safe-data"
+import { useCurrency } from "@/contexts/CurrencyContext"
 
 interface TransactionHistoryProps {
   transactions: {
@@ -20,6 +21,7 @@ interface TransactionHistoryProps {
 }
 
 export function TransactionHistory({ transactions }: TransactionHistoryProps) {
+  const { formatMoney } = useCurrency()
   const getTransactionIcon = (type: string) => {
     switch (type) {
       case "earning":
@@ -102,9 +104,12 @@ export function TransactionHistory({ transactions }: TransactionHistoryProps) {
     return transaction.description
   }
 
-  const formatCurrency = (currency: string) => {
-    if (currency === "ED") return "CR"
-    return currency || "XAF"
+  const formatTransactionAmount = (transaction: any) => {
+    const amount = Math.abs(toNumber(transaction.amount))
+    if (transaction.currency === "ED" || transaction.currency === "CR") {
+      return `${formatNumber(amount)} CR`
+    }
+    return formatMoney(amount)
   }
 
   // Sort transactions by date (newest first)
@@ -180,7 +185,7 @@ export function TransactionHistory({ transactions }: TransactionHistoryProps) {
                       <div className="flex items-center space-x-2 justify-end">
                         <span className={`font-semibold ${getAmountColor(transaction.type)}`}>
                           {getAmountPrefix(transaction.type)}
-                          {formatNumber(transaction.amount)} {formatCurrency(transaction.currency)}
+                          {formatTransactionAmount(transaction)}
                         </span>
                       </div>
                       <Badge 

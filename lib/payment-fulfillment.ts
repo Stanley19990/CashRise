@@ -43,6 +43,8 @@ export async function fulfillMachinePurchase(supabase: SupabaseClient, transacti
 
     activated = true
 
+    await recordAdminMachineRevenue(supabase, transaction, machineTypeId)
+
     await createNotificationAndPush(supabase, {
       user_id: userId,
       title: "Machine activated",
@@ -77,12 +79,56 @@ export async function syncMachineCount(supabase: SupabaseClient, userId: string)
   return count || 0
 }
 
+async function recordAdminMachineRevenue(supabase: SupabaseClient, transaction: any, machineTypeId: number) {
+  const revenueAmount = Math.abs(Number(transaction?.amount || 0))
+  if (!Number.isFinite(revenueAmount) || revenueAmount <= 0) return
+
+  const externalId = `admin_machine_revenue_${transaction?.id || transaction?.external_id || `${transaction?.user_id}_${machineTypeId}`}`
+
+  const { data: existingAdminTx } = await supabase
+    .from("admin_transactions")
+    .select("id")
+    .eq("external_id", externalId)
+    .maybeSingle()
+
+  if (existingAdminTx) return
+
+  const { data: wallet } = await supabase.from("admin_wallet").select("*").limit(1).maybeSingle()
+
+  if (wallet?.id) {
+    await supabase
+      .from("admin_wallet")
+      .update({
+        balance: Number(wallet.balance || 0) + revenueAmount,
+        total_received: Number(wallet.total_received || 0) + revenueAmount,
+        updated_at: new Date().toISOString()
+      })
+      .eq("id", wallet.id)
+  } else {
+    await supabase.from("admin_wallet").insert({
+      balance: revenueAmount,
+      total_received: revenueAmount,
+      total_withdrawn: 0
+    })
+  }
+
+  await supabase.from("admin_transactions").insert({
+    amount: revenueAmount,
+    transaction_type: "credit",
+    description: `Machine purchase revenue for machine ${machineTypeId}`,
+    external_id: externalId,
+    status: "completed"
+  })
+}
+
 async function findOrCreateReferral(supabase: SupabaseClient, userId: string) {
   const { data: existingReferral } = await supabase
     .from("referrals")
     .select("*")
     .eq("referred_id", userId)
     .in("status", ["pending", "active", "completed"])
+    .order("created_at", { ascending: true })
+    .limit(1)
     .maybeSingle()
 
   if (existingReferral) return existingReferral
@@ -179,7 +225,7 @@ export async function processReferralBonusForMachine(
       reward_notes: `Processing first machine bonus for machine ${machineId}`
     })
     .eq("id", referral.id)
-    .in("status", ["pending", "active"])
+    .in("status", ["pending", "active", "completed"])
     .or("bonus.is.null,bonus.eq.0")
     .select("*")
     .maybeSingle()

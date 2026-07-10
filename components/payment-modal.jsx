@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -9,12 +9,16 @@ import { CreditCard, Loader2, Phone, Smartphone, AlertCircle } from "lucide-reac
 import { toast } from "sonner"
 import { CashRiseLogo } from "@/components/cashrise-logo"
 import { supabase } from "@/lib/supabase"
+import { useCurrency } from "@/contexts/CurrencyContext"
+import { PaymentSelector } from "@/components/PaymentSelector"
 
 export function PaymentModal({ open, onOpenChange, machine, user, onPaymentSuccess }) {
+  const { country, formatMoney } = useCurrency()
   const [processing, setProcessing] = useState(false)
   const [phone, setPhone] = useState("")
   const [selectedMethod, setSelectedMethod] = useState("auto")
   const [errorMessage, setErrorMessage] = useState("")
+  const [paymentMode, setPaymentMode] = useState("select")
 
   // Helper function to get discounted price
   const getDiscountedPrice = (price) => {
@@ -33,6 +37,14 @@ export function PaymentModal({ open, onOpenChange, machine, user, onPaymentSucce
   const finalPrice = getDiscountedPrice(machine?.price || 0)
   const hasDiscount = isDiscounted(machine?.price || 0)
   const discountAmount = (machine?.price || 0) - finalPrice
+
+  useEffect(() => {
+    if (open) {
+      setPaymentMode("select")
+      setErrorMessage("")
+      setPhone("")
+    }
+  }, [open])
 
   const validatePhone = (phoneNumber) => {
     const clean = phoneNumber.replace(/\D/g, '')
@@ -149,11 +161,35 @@ export function PaymentModal({ open, onOpenChange, machine, user, onPaymentSucce
         </DialogHeader>
 
         <div className="space-y-4">
+          {paymentMode === "select" && (
+            <PaymentSelector
+              amountXAF={finalPrice}
+              description={`Purchase ${machine?.name || "Machine"}`}
+              purpose="machine_purchase"
+              transactionType="machine_purchase"
+              metadata={{
+                machine_id: machine?.id,
+                machine_name: machine?.name,
+                original_price: machine?.price,
+                discounted_price: finalPrice,
+                discount_applied: hasDiscount
+              }}
+              onFapshiSelect={() => setPaymentMode("fapshi")}
+              onSuccess={(transactionId) => {
+                toast.success("Futurapay payment confirmed.")
+                onOpenChange(false)
+                onPaymentSuccess?.(transactionId || "", transactionId || "", "futurapay")
+              }}
+            />
+          )}
+
+          {paymentMode === "fapshi" && (
+            <>
           {hasDiscount && (
             <div className="bg-emerald-500/20 border border-emerald-500/30 rounded-2xl p-3 animate-pulse">
               <div className="flex items-center justify-between">
                 <span className="text-emerald-300 font-bold">🔥 5% DISCOUNT!</span>
-                <span className="text-white font-bold">Save {discountAmount?.toLocaleString() || 0} XAF</span>
+                <span className="text-white font-bold">Save {formatMoney(discountAmount || 0)}</span>
               </div>
             </div>
           )}
@@ -238,24 +274,24 @@ export function PaymentModal({ open, onOpenChange, machine, user, onPaymentSucce
                 <div className="flex justify-between items-center mb-1">
                   <span className="text-slate-400">Original Price:</span>
                   <span className="text-sm text-rose-300 line-through">
-                    {machine?.price?.toLocaleString() || 0} XAF
+                    {formatMoney(machine?.price || 0)}
                   </span>
                 </div>
                 <div className="flex justify-between items-center mb-2">
                   <span className="text-slate-400">Discounted Price:</span>
                   <span className="text-2xl font-bold text-emerald-300">
-                    {finalPrice?.toLocaleString() || 0} XAF
+                    {formatMoney(finalPrice || 0)}
                   </span>
                 </div>
                 <div className="text-xs text-amber-300 font-bold text-center mt-1">
-                  🔥 You save {discountAmount?.toLocaleString() || 0} XAF (5% OFF)
+                  🔥 You save {formatMoney(discountAmount || 0)} (5% OFF)
                 </div>
               </>
             ) : (
               <div className="flex justify-between items-center mb-2">
                 <span className="text-slate-400">Amount:</span>
                 <span className="text-2xl font-bold text-emerald-300">
-                  {machine?.price?.toLocaleString() || 0} XAF
+                  {formatMoney(machine?.price || 0)}
                 </span>
               </div>
             )}
@@ -279,7 +315,7 @@ export function PaymentModal({ open, onOpenChange, machine, user, onPaymentSucce
             ) : (
               <>
                 <CreditCard className="h-4 w-4 mr-2" />
-                Pay {finalPrice?.toLocaleString() || 0} XAF
+                Pay {formatMoney(finalPrice || 0)}
               </>
             )}
           </Button>
@@ -290,12 +326,20 @@ export function PaymentModal({ open, onOpenChange, machine, user, onPaymentSucce
 
           <Button
             variant="outline"
-            onClick={() => onOpenChange(false)}
+            onClick={() => {
+              if (country.code === "CM") {
+                setPaymentMode("select")
+              } else {
+                onOpenChange(false)
+              }
+            }}
             disabled={processing}
             className="w-full cr-outline-button hover:text-cyan-100"
           >
-            Cancel
+            {country.code === "CM" ? "Back" : "Cancel"}
           </Button>
+            </>
+          )}
         </div>
       </DialogContent>
     </Dialog>

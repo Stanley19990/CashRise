@@ -1,17 +1,12 @@
 // lib/referral-service.ts
-import { createClient } from '@supabase/supabase-js'
 import { NotificationService } from './notification-service'
+import { createServiceClient } from './server-auth'
 
-// Initialize Supabase with your existing environment variables
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
-
-if (!supabaseUrl || !supabaseServiceKey) {
-  console.error('Missing Supabase environment variables')
-  throw new Error('Missing Supabase environment variables. Please check your .env.local file.')
-}
-
-const supabase = createClient(supabaseUrl, supabaseServiceKey)
+const supabase = new Proxy({} as ReturnType<typeof createServiceClient>, {
+  get(_target, prop) {
+    return (createServiceClient() as any)[prop as keyof ReturnType<typeof createServiceClient>]
+  }
+})
 
 export interface Referral {
   id: number

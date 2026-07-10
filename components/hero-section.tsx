@@ -8,9 +8,12 @@ import { LoginModal } from "@/components/login-modal"
 import { CashRiseLogo } from "@/components/cashrise-logo"
 import { LanguageSwitcher } from "@/components/language-switcher"
 import { useLanguage } from "@/components/language-provider"
+import { useCurrency } from "@/contexts/CurrencyContext"
+import { InstallAppButton } from "@/components/install-app-button"
 
 export function HeroSection() {
   const { t } = useLanguage()
+  const { formatMoney } = useCurrency()
   const [showSignup, setShowSignup] = useState(false)
   const [showLogin, setShowLogin] = useState(false)
 
@@ -35,12 +38,12 @@ export function HeroSection() {
 
         <div className="absolute top-20 left-4 md:left-20 bg-emerald-500/10 backdrop-blur-sm border border-emerald-400/30 rounded-2xl p-3 md:p-4 animate-bounce z-10">
           <div className="text-emerald-200 text-xs md:text-sm font-mono">CASHFLOW SIGNAL</div>
-          <div className="text-amber-300 font-bold text-sm md:text-base">+48,200 XAF</div>
+          <div className="text-amber-300 font-bold text-sm md:text-base">+{formatMoney(48200)}</div>
         </div>
 
         <div className="absolute bottom-32 right-4 md:right-32 bg-cyan-500/10 backdrop-blur-sm border border-cyan-400/30 rounded-2xl p-3 md:p-4 animate-pulse z-10">
           <div className="text-cyan-200 text-xs md:text-sm font-mono">LIVE RISE</div>
-          <div className="text-amber-300 font-bold text-sm md:text-base">+312,450 XAF</div>
+          <div className="text-amber-300 font-bold text-sm md:text-base">+{formatMoney(312450)}</div>
         </div>
 
         {/* Floating 3D Money Machines */}
@@ -55,9 +58,10 @@ export function HeroSection() {
       <div className="text-center max-w-5xl mx-auto">
         {/* Hero Content */}
         <div className="relative z-10">
-          {/* Updated branding and messaging */}
           <div className="mb-4">
-            <span className="text-emerald-200 text-xs md:text-sm font-mono tracking-[0.4em]">CAMEROON AI INVESTMENT</span>
+            <span className="text-emerald-200 text-xs md:text-sm font-mono tracking-[0.26em] sm:tracking-[0.4em]">
+              WORLD'S FIRST AI INVESTMENT PLATFORM
+            </span>
           </div>
 
           <div className="flex items-center justify-center mb-5">
@@ -73,8 +77,8 @@ export function HeroSection() {
           </p>
 
           <p className="text-lg md:text-xl mb-8 text-slate-300 max-w-3xl mx-auto leading-relaxed">
-            Turn attention into income with our{" "}
-            <span className="text-emerald-300 font-semibold">CashRise investment network</span>. Buy machines, earn
+            Turn attention into income with the{" "}
+            <span className="text-emerald-300 font-semibold">CashRise global AI investment platform</span>. Buy machines, earn
             daily profits, and let smart automation{" "}
             <span className="text-amber-300 font-semibold">multiply your earnings</span>.
           </p>
@@ -108,6 +112,7 @@ export function HeroSection() {
             >
               {t("seeHowItWorks")}
             </Button>
+            <InstallAppButton className="cr-outline-button px-10 py-4 text-lg rounded-full transition-all duration-300" />
           </div>
 
           {/* Trust Indicators */}
@@ -118,7 +123,7 @@ export function HeroSection() {
             </div>
             <div className="flex items-center gap-2">
               <div className="w-2 h-2 bg-cyan-400 rounded-full animate-pulse"></div>
-              <span>Secure Mobile Money</span>
+              <span>Global Payment Support</span>
             </div>
             <div className="flex items-center gap-2">
               <div className="w-2 h-2 bg-amber-400 rounded-full animate-pulse"></div>

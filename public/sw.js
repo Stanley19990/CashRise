@@ -2,7 +2,7 @@ self.addEventListener("install", (event) => {
   event.waitUntil(
     caches
       .open("cashrise-shell-v1")
-      .then((cache) => cache.addAll(["/", "/dashboard", "/placeholder-logo.png"]))
+      .then((cache) => cache.addAll(["/", "/dashboard", "/cashrise-logo.svg"]))
       .then(() => self.skipWaiting())
   )
 })
@@ -49,8 +49,8 @@ self.addEventListener("push", (event) => {
   const title = data.title || "CashRise"
   const options = {
     body: data.message || "You have a new CashRise update.",
-    icon: "/placeholder-logo.png",
-    badge: "/placeholder-logo.png",
+    icon: "/cashrise-logo.svg",
+    badge: "/cashrise-logo.svg",
     data: {
       url: data.action_url || "/dashboard"
     }

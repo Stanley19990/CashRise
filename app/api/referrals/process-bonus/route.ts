@@ -1,18 +1,21 @@
 import { NextRequest, NextResponse } from "next/server"
-import { createClient } from "@supabase/supabase-js"
 import { processReferralBonusForMachine } from "@/lib/payment-fulfillment"
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
+import { createServiceClient, requireAuthenticatedUser } from "@/lib/server-auth"
 
 export async function POST(request: NextRequest) {
   try {
+    const auth = await requireAuthenticatedUser(request)
+    if (auth.response) return auth.response
+
+    const supabase = createServiceClient()
     const { userId, machineId } = await request.json()
 
     if (!userId) {
       return NextResponse.json({ success: false, error: "Missing userId" }, { status: 400 })
+    }
+
+    if (userId !== auth.user.id) {
+      return NextResponse.json({ success: false, error: "Referral bonus user mismatch" }, { status: 403 })
     }
 
     let targetMachineId = machineId

@@ -1,11 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
-import { createClient } from "@supabase/supabase-js"
 import { createNotificationAndPush } from "@/lib/push-server"
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
+import { createServiceClient } from "@/lib/server-auth"
 
 const REMINDER_MILESTONES = [15, 10, 5, 0]
 
@@ -15,10 +10,15 @@ const getReminderMilestone = (hoursRemaining: number) => {
 }
 
 export async function POST(request: NextRequest) {
+  const supabase = createServiceClient()
   const cronSecret = process.env.CRON_SECRET
   const authHeader = request.headers.get("authorization")
 
-  if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
+  if (!cronSecret) {
+    return NextResponse.json({ success: false, error: "CRON_SECRET is not configured" }, { status: 500 })
+  }
+
+  if (authHeader !== `Bearer ${cronSecret}`) {
     return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 })
   }
 

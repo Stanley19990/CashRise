@@ -1,14 +1,8 @@
 import { NextRequest, NextResponse } from "next/server"
-import { createClient } from "@supabase/supabase-js"
 import { ensureFapshiTransaction, extractFapshiStatus, normalizeFapshiStatus } from "@/lib/fapshi-payments"
 import { fulfillMachinePurchase } from "@/lib/payment-fulfillment"
 import { createNotificationAndPush } from "@/lib/push-server"
-import { requireAuthenticatedUser } from "@/lib/server-auth"
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
+import { createServiceClient, requireAuthenticatedUser } from "@/lib/server-auth"
 
 const FAPSHI_BASE_URL = process.env.FAPSHI_BASE_URL || process.env.FAPSHI_ENVIRONMENT || "https://live.fapshi.com"
 
@@ -16,9 +10,13 @@ export async function POST(request: NextRequest) {
   try {
     const auth = await requireAuthenticatedUser(request)
     if (auth.response) return auth.response
+    const supabase = createServiceClient()
+
+    if (!process.env.FAPSHI_API_USER || !process.env.FAPSHI_API_KEY) {
+      return NextResponse.json({ success: false, error: "Missing Fapshi payment configuration" }, { status: 500 })
+    }
 
     const { transId } = await request.json()
-
     if (!transId) {
       return NextResponse.json({ success: false, error: "Missing transId" }, { status: 400 })
     }
@@ -27,14 +25,13 @@ export async function POST(request: NextRequest) {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
-        apiuser: process.env.FAPSHI_API_USER!,
-        apikey: process.env.FAPSHI_API_KEY!
+        apiuser: process.env.FAPSHI_API_USER,
+        apikey: process.env.FAPSHI_API_KEY
       }
     })
 
     const responseData = await response.json().catch(() => null)
-
-    console.log("📥 Fapshi status response:", {
+    console.log("Fapshi status response:", {
       transId,
       ok: response.ok,
       statusCode: response.status,
@@ -52,10 +49,9 @@ export async function POST(request: NextRequest) {
     }
 
     const normalizedStatus = normalizeFapshiStatus(extractFapshiStatus(responseData))
-
     let { data: transaction } = await supabase
       .from("transactions")
-      .select("id, user_id, external_id, metadata, created_at")
+      .select("id, user_id, amount, type, external_id, metadata, created_at")
       .eq("fapshi_trans_id", transId)
       .eq("user_id", auth.user.id)
       .order("created_at", { ascending: false })
@@ -117,7 +113,7 @@ export async function POST(request: NextRequest) {
       fulfillment
     })
   } catch (error: any) {
-    console.error("❌ Reconcile error:", error)
+    console.error("Reconcile error:", error)
     return NextResponse.json(
       { success: false, error: error.message || "Internal server error" },
       { status: 500 }

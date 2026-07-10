@@ -1,16 +1,20 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 
 import type React from "react"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useAuth } from "@/hooks/use-auth"
 import { Loader2 } from "lucide-react"
 import { CashRiseLogo } from "@/components/cashrise-logo"
+import { CountrySelect } from "@/components/CountrySelect"
+import { CountryPhoneInput } from "@/components/CountryPhoneInput"
+import { useCurrency } from "@/contexts/CurrencyContext"
+import type { CountryInfo } from "@/lib/currency"
+import { formatPhoneForCountry } from "@/lib/phone"
 
 interface AuthModalProps {
   isOpen: boolean
@@ -19,20 +23,29 @@ interface AuthModalProps {
   onModeChange: (mode: "signin" | "signup") => void
 }
 
-const africanCountries = ["Cameroon"]
-
 export function AuthModal({ isOpen, onClose, mode, onModeChange }: AuthModalProps) {
   const { signIn, signUp } = useAuth()
+  const { country: selectedCountry, setCountry: setGlobalCountry } = useCurrency()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
   const [formData, setFormData] = useState({
     email: "",
     password: "",
     fullName: "",
-    country: "Cameroon",
+    country: selectedCountry.name,
+    countryData: selectedCountry as CountryInfo,
     phone: "",
     referralCode: "",
   })
+
+  useEffect(() => {
+    if (!isOpen) return
+    setFormData((prev) => ({
+      ...prev,
+      country: selectedCountry.name,
+      countryData: selectedCountry
+    }))
+  }, [isOpen, selectedCountry])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -78,8 +91,9 @@ export function AuthModal({ isOpen, onClose, mode, onModeChange }: AuthModalProp
           formData.password,
           formData.fullName,
           formData.country,
-          formData.phone,
+          formatPhoneForCountry(formData.phone, formData.countryData),
           formData.referralCode,
+          formData.countryData,
         )
         console.log("Sign up result:", result?.error ? "Error occurred" : "Success")
         if (result.error) {
@@ -96,6 +110,16 @@ export function AuthModal({ isOpen, onClose, mode, onModeChange }: AuthModalProp
     } finally {
       setLoading(false)
     }
+  }
+
+  const handleCountryChange = (country: CountryInfo) => {
+    setFormData((prev) => ({
+      ...prev,
+      country: country.name,
+      countryData: country
+    }))
+    void setGlobalCountry(country)
+    if (error) setError("")
   }
 
   return (
@@ -159,30 +183,17 @@ export function AuthModal({ isOpen, onClose, mode, onModeChange }: AuthModalProp
 
               <div className="space-y-2">
                 <Label htmlFor="country" className="text-slate-200">Country</Label>
-                <Select
-                  value={formData.country}
-                  onValueChange={(value) => setFormData({ ...formData, country: value })}
-                >
-                  <SelectTrigger className="bg-slate-900/70 border-slate-700/70 focus:border-cyan-500">
-                    <SelectValue placeholder="Select your country" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-slate-900 border-slate-700">
-                    {africanCountries.map((country) => (
-                      <SelectItem key={country} value={country}>
-                        {country}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <CountrySelect value={formData.countryData} onChange={handleCountryChange} disabled={loading} />
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="phone" className="text-slate-200">Phone (Optional)</Label>
-                <Input
+                <CountryPhoneInput
                   id="phone"
+                  country={formData.countryData}
                   value={formData.phone}
-                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                  className="bg-slate-900/70 border-slate-700/70 focus:border-cyan-500 text-slate-100"
+                  onChange={(value) => setFormData({ ...formData, phone: value })}
+                  disabled={loading}
                 />
               </div>
 

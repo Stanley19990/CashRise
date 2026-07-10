@@ -9,11 +9,12 @@ import { MachineMarketplace } from "@/components/machine-marketplace"
 import { MyMachines } from "@/components/my-machines"
 import { EarningsChart } from "@/components/earnings-chart"
 import { FloatingParticles } from "@/components/floating-particles"
-import { Toaster } from "sonner"
+import { Toaster, toast } from "sonner"
 import { supabase } from "@/lib/supabase"
 import PromoModal from "@/components/PromoModal"
 import WeeklyReferralModal from "@/components/WeeklyReferralModal"
 import { firstRelation, formatDate, formatNumber, toNumber } from "@/lib/safe-data"
+import { useCurrency } from "@/contexts/CurrencyContext"
 
 // Define types
 interface ReferredUser {
@@ -36,6 +37,7 @@ interface MachineEstimate {
 
 export default function DashboardPage() {
   const { user, loading, refreshUser } = useAuth()
+  const { formatMoney } = useCurrency()
   const router = useRouter()
   const [repairTriggered, setRepairTriggered] = useState(false)
 
@@ -59,6 +61,69 @@ export default function DashboardPage() {
   useEffect(() => {
     if (!loading && !user) router.push("/")
   }, [user, loading, router])
+
+  useEffect(() => {
+    if (!user) return
+
+    const params = new URLSearchParams(window.location.search)
+    const paymentStatus = params.get("payment") || params.get("status")
+    const transactionId = params.get("transactionId") || params.get("customer_transaction_id")
+
+    if (!paymentStatus && !transactionId) return
+
+    const normalizedStatus = String(paymentStatus || "").toLowerCase()
+    const isSuccess = ["success", "successful", "completed"].includes(normalizedStatus)
+    const isFailure = ["failed", "fail", "cancelled", "canceled", "expired"].includes(normalizedStatus)
+
+    const finishRedirect = async () => {
+      const { data: sessionData } = await supabase.auth.getSession()
+      const authHeaders: Record<string, string> = {}
+      if (sessionData.session?.access_token) {
+        authHeaders.Authorization = `Bearer ${sessionData.session.access_token}`
+      }
+
+      if (transactionId) {
+        await fetch("/api/payments/futurapay/status", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            ...authHeaders
+          },
+          body: JSON.stringify({ transactionId })
+        }).catch(() => null)
+      }
+
+      if (isSuccess || transactionId) {
+        await fetch("/api/machines/repair", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            ...authHeaders
+          },
+          body: JSON.stringify({ userId: user.id })
+        }).catch(() => null)
+
+        refreshDashboard()
+      }
+    }
+
+    if (isSuccess) {
+      toast.success("Payment successful. Your account is being updated.")
+      finishRedirect()
+    } else if (isFailure) {
+      toast.error("Payment was not completed. Please try again.")
+    } else if (transactionId) {
+      toast.info("Checking your payment status...")
+      finishRedirect()
+    }
+
+    params.delete("payment")
+    params.delete("status")
+    params.delete("transactionId")
+    params.delete("customer_transaction_id")
+    const cleanUrl = `${window.location.pathname}${params.toString() ? `?${params.toString()}` : ""}`
+    window.history.replaceState({}, "", cleanUrl)
+  }, [user])
 
   useEffect(() => {
     if (user) {
@@ -234,7 +299,7 @@ export default function DashboardPage() {
                             <p className="text-slate-400 text-sm">{formatDate(earning.created_at)}</p>
                           </div>
                           <div className="text-right">
-                            <p className="text-green-400 font-bold">+{formatNumber(earning.amount)} XAF</p>
+                            <p className="text-green-400 font-bold">+{formatMoney(toNumber(earning.amount))}</p>
                             <p className="text-slate-400 text-sm">Daily earnings</p>
                           </div>
                         </div>
@@ -254,13 +319,13 @@ export default function DashboardPage() {
                       {todaysEarnings.machineEstimates.map((machine, index) => (
                         <div key={index} className="flex items-center justify-between">
                           <span className="text-slate-300 text-sm">{machine.name}</span>
-                          <span className="text-green-400 font-bold">+{formatNumber(machine.earnings)} XAF</span>
+                          <span className="text-green-400 font-bold">+{formatMoney(machine.earnings)}</span>
                         </div>
                       ))}
                       <div className="border-t border-slate-700/70 pt-2 mt-2">
                         <div className="flex items-center justify-between font-bold">
                           <span className="text-cyan-300">Total</span>
-                          <span className="text-green-400">+{formatNumber(todaysEarnings.totalEstimated)} XAF</span>
+                          <span className="text-green-400">+{formatMoney(todaysEarnings.totalEstimated)}</span>
                         </div>
                       </div>
                     </div>

@@ -9,7 +9,8 @@ import { FloatingParticles } from "@/components/floating-particles"
 import { Toaster, toast } from "sonner"
 import { Copy, DollarSign, Users, TrendingUp, CheckCircle, Clock, Share2, Loader2 } from "lucide-react"
 import { supabase } from "@/lib/supabase"
-import { firstRelation, formatDate, formatNumber, toNumber } from "@/lib/safe-data"
+import { firstRelation, formatDate, toNumber } from "@/lib/safe-data"
+import { useCurrency } from "@/contexts/CurrencyContext"
 
 interface ReferralStats {
   totalReferrals: number
@@ -20,6 +21,7 @@ interface ReferralStats {
 
 export default function ReferralsPage() {
   const { user, loading: authLoading } = useAuth()
+  const { formatMoney } = useCurrency()
   const router = useRouter()
   const [referralStats, setReferralStats] = useState<ReferralStats>({
     totalReferrals: 0,
@@ -289,7 +291,7 @@ export default function ReferralsPage() {
               Referral Program
             </h1>
             <p className="text-slate-400 text-xs sm:text-sm lg:text-base px-4">
-              Invite friends and earn {REFERRAL_BONUS.toLocaleString()} XAF for each referral when they purchase their first machine
+              Invite friends and earn {formatMoney(REFERRAL_BONUS)} for each referral when they purchase their first machine
             </p>
           </div>
 
@@ -309,7 +311,7 @@ export default function ReferralsPage() {
                     <DollarSign className="h-4 w-4 sm:h-5 sm:w-5 text-white mx-auto mb-2" />
                     <p className="text-xs sm:text-sm text-slate-200">Total Bonus Earned</p>
                     <p className="text-xl sm:text-2xl font-bold text-white">
-                      {formatNumber(referralStats.totalBonusEarned)} XAF
+                      {formatMoney(referralStats.totalBonusEarned)}
                     </p>
                   </div>
                   <div className="bg-gradient-to-r from-amber-500 to-orange-500 rounded-2xl p-3 sm:p-4 text-center">
@@ -347,8 +349,8 @@ export default function ReferralsPage() {
                       3
                     </div>
                     <div>
-                      <p className="text-white font-medium text-sm sm:text-base">Get {REFERRAL_BONUS.toLocaleString()} XAF instantly</p>
-                      <p className="text-slate-400 text-xs sm:text-sm">We automatically credit {REFERRAL_BONUS.toLocaleString()} XAF to your wallet when they make their first purchase</p>
+                      <p className="text-white font-medium text-sm sm:text-base">Get {formatMoney(REFERRAL_BONUS)} instantly</p>
+                      <p className="text-slate-400 text-xs sm:text-sm">We automatically credit {formatMoney(REFERRAL_BONUS)} to your wallet when they make their first purchase</p>
                     </div>
                   </div>
                 </div>
@@ -416,7 +418,7 @@ export default function ReferralsPage() {
                                     <span className={`font-semibold text-xs sm:text-sm whitespace-nowrap ${
                                       bonus > 0 ? 'text-emerald-300' : 'text-slate-400'
                                     }`}>
-                                      {bonus > 0 ? `${formatNumber(bonus)} XAF` : '0 XAF'}
+                                      {bonus > 0 ? formatMoney(bonus) : formatMoney(0)}
                                     </span>
                                   </td>
                                   <td className="py-2 sm:py-3 px-2 sm:px-4 hidden sm:table-cell text-xs sm:text-sm">
@@ -470,7 +472,7 @@ export default function ReferralsPage() {
               <div className="bg-slate-800/50 border border-slate-700 rounded-xl p-4 sm:p-6 space-y-3 sm:space-y-4">
                 <h2 className="text-lg sm:text-xl font-bold text-white">Your Referral Link</h2>
                 <p className="text-slate-400 text-xs sm:text-sm">
-                  Share this link with friends. You earn <strong>{REFERRAL_BONUS.toLocaleString()} XAF</strong> when they purchase their first machine.
+                  Share this link with friends. You earn <strong>{formatMoney(REFERRAL_BONUS)}</strong> when they purchase their first machine.
                 </p>
                 <div className="flex items-center bg-slate-900 rounded-lg p-2 sm:p-3 space-x-2">
                   <input
@@ -520,7 +522,7 @@ export default function ReferralsPage() {
                   </li>
                   <li className="flex items-start space-x-2">
                     <div className="w-1.5 h-1.5 bg-cyan-400 rounded-full mt-1.5 flex-shrink-0"></div>
-                    <span>Referral bonus: {REFERRAL_BONUS.toLocaleString()} XAF per successful referral</span>
+                    <span>Referral bonus: {formatMoney(REFERRAL_BONUS)} per successful referral</span>
                   </li>
                 </ul>
               </div>
@@ -528,10 +530,10 @@ export default function ReferralsPage() {
               {/* Bonus Info Card */}
               <div className="bg-gradient-to-r from-purple-500/10 to-pink-500/10 border border-purple-500/20 rounded-xl p-4 sm:p-6">
                 <div className="text-center">
-                  <div className="text-xl sm:text-2xl font-bold text-purple-400 mb-2">{REFERRAL_BONUS.toLocaleString()} XAF</div>
+                  <div className="text-xl sm:text-2xl font-bold text-purple-400 mb-2">{formatMoney(REFERRAL_BONUS)}</div>
                   <div className="text-xs sm:text-sm text-purple-300">Per Successful Referral</div>
                   <div className="text-xs text-slate-400 mt-2">
-                    That's approximately ${(REFERRAL_BONUS / 600).toFixed(2)} USD per referral!
+                    Paid in your selected display currency using the platform exchange rate.
                   </div>
                 </div>
               </div>

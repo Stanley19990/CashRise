@@ -1,17 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
 import { createNotificationAndPush } from '@/lib/push-server'
-import { requireAuthenticatedUser } from '@/lib/server-auth'
-
-// Initialize Supabase client with service role key
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
-
-if (!supabaseUrl || !supabaseServiceKey) {
-  throw new Error('Missing Supabase environment variables')
-}
-
-const supabase = createClient(supabaseUrl, supabaseServiceKey)
+import { createServiceClient, requireAuthenticatedUser } from '@/lib/server-auth'
+import { convertFromXAF, formatCurrency, normalizeCountry } from '@/lib/currency'
 
 export async function POST(request: NextRequest) {
   console.log('🔧 Claim earnings API called')
@@ -19,6 +9,7 @@ export async function POST(request: NextRequest) {
   try {
     const auth = await requireAuthenticatedUser(request)
     if (auth.response) return auth.response
+    const supabase = createServiceClient()
 
     const body = await request.json()
     const { userMachineId, userId: requestedUserId } = body
@@ -109,7 +100,7 @@ export async function POST(request: NextRequest) {
     // Get current user data
     const { data: userData, error: userError } = await supabase
       .from('users')
-      .select('wallet_balance, total_earned')
+      .select('wallet_balance, total_earned, country')
       .eq('id', userId)
       .single()
 
@@ -123,6 +114,8 @@ export async function POST(request: NextRequest) {
 
     const currentWalletBalance = userData.wallet_balance || 0
     const currentTotalEarned = userData.total_earned || 0
+    const userCountry = normalizeCountry(userData.country || "CM")
+    const formattedEarnedAmount = formatCurrency(convertFromXAF(earnedAmountXAF, userCountry.currency), userCountry.currency)
     const newWalletBalance = currentWalletBalance + earnedAmountXAF
     const newTotalEarned = currentTotalEarned + earnedAmountXAF
 
@@ -196,8 +189,12 @@ export async function POST(request: NextRequest) {
         user_id: userId,
         machine_id: userMachineId,
         amount: earnedAmountXAF,
+        currency: 'XAF',
+        earning_type: 'mining_claim',
+        description: `Mining claim from ${machineType?.name || 'Machine'}`,
         earned_at: new Date().toISOString(),
-        type: 'mining_claim'
+        type: 'mining_claim',
+        created_at: new Date().toISOString()
       })
 
     if (earningsError) {
@@ -232,7 +229,7 @@ export async function POST(request: NextRequest) {
     await createNotificationAndPush(supabase, {
       user_id: userId,
       title: 'Earnings claimed',
-      message: `${earnedAmountXAF.toLocaleString()} XAF was added to your wallet.`,
+      message: `${formattedEarnedAmount} was added to your wallet.`,
       type: 'claim_earnings',
       action_url: '/wallet',
       related_id: userMachineId,
@@ -247,7 +244,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      message: `Successfully claimed ${earnedAmountXAF.toLocaleString()} XAF!`,
+      message: `Successfully claimed ${formattedEarnedAmount}!`,
       amountXAF: earnedAmountXAF,
       newWalletBalance: newWalletBalance,
       newTotalEarned: newTotalEarned,

@@ -10,10 +10,12 @@ import { useAuth } from "@/hooks/use-auth"
 import { Card, CardContent } from "@/components/ui/card"
 import { Coins, Users, Share2, ArrowUpRight, Loader2 } from "lucide-react"
 import { useRouter } from "next/navigation"
-import { formatNumber, toNumber } from "@/lib/safe-data"
+import { toNumber } from "@/lib/safe-data"
+import { useCurrency } from "@/contexts/CurrencyContext"
 
 export default function TransactionsPage() {
   const { user } = useAuth()
+  const { formatMoney } = useCurrency()
   const router = useRouter()
   const [transactions, setTransactions] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
@@ -149,7 +151,7 @@ export default function TransactionsPage() {
                     <div>
                       <p className="text-slate-400 text-sm">Total Earned</p>
                       <p className="text-2xl font-bold text-white">
-                        {formatNumber(stats.totalEarned)} XAF
+                        {formatMoney(stats.totalEarned)}
                       </p>
                     </div>
                   </div>
@@ -165,7 +167,7 @@ export default function TransactionsPage() {
                     <div>
                       <p className="text-slate-400 text-sm">Total Withdrawn</p>
                       <p className="text-2xl font-bold text-white">
-                        {formatNumber(stats.totalWithdrawn)} XAF
+                        {formatMoney(stats.totalWithdrawn)}
                       </p>
                     </div>
                   </div>
@@ -181,7 +183,7 @@ export default function TransactionsPage() {
                     <div>
                       <p className="text-slate-400 text-sm">Referral Bonus</p>
                       <p className="text-2xl font-bold text-white">
-                        {formatNumber(stats.referralBonus)} XAF
+                        {formatMoney(stats.referralBonus)}
                       </p>
                     </div>
                   </div>
@@ -197,7 +199,7 @@ export default function TransactionsPage() {
                     <div>
                       <p className="text-slate-400 text-sm">Social Bonus</p>
                       <p className="text-2xl font-bold text-white">
-                        {formatNumber(stats.socialBonus)} XAF
+                        {formatMoney(stats.socialBonus)}
                       </p>
                     </div>
                   </div>

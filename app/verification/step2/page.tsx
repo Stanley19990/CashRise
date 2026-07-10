@@ -13,9 +13,11 @@ import { supabase } from "@/lib/supabase"
 import { useAuth } from "@/hooks/use-auth"
 import { VerificationProgress } from "@/components/verification-progress"
 import { firstRelation, formatDate, formatNumber, toNumber } from "@/lib/safe-data"
+import { useCurrency } from "@/contexts/CurrencyContext"
 
 export default function VerificationStep2() {
   const { user } = useAuth()
+  const { formatMoney } = useCurrency()
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
@@ -750,7 +752,7 @@ export default function VerificationStep2() {
                                 <span className={`font-medium ${
                                   ref.bonus > 0 ? 'text-green-400' : 'text-slate-400'
                                 }`}>
-                                  {ref.bonus > 0 ? `${formatNumber(ref.bonus)} XAF` : 'Pending'}
+                                  {ref.bonus > 0 ? formatMoney(toNumber(ref.bonus)) : 'Pending'}
                                 </span>
                               </div>
                             </td>

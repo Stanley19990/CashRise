@@ -10,9 +10,11 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { toast } from "sonner"
 import { CashRiseLogo } from "@/components/cashrise-logo"
+import { authService } from "@/lib/auth"
+import { supabase } from "@/lib/supabase"
 
 export default function AdminLoginPage() {
-  const [credentials, setCredentials] = useState({ username: "", password: "" })
+  const [credentials, setCredentials] = useState({ email: "", password: "" })
   const [loading, setLoading] = useState(false)
   const router = useRouter()
 
@@ -20,13 +22,23 @@ export default function AdminLoginPage() {
     e.preventDefault()
     setLoading(true)
 
-    // Mock admin login - in real app, this would verify against secure backend
-    if (credentials.username === "admin" && credentials.password === "admin123") {
-      localStorage.setItem("easy_dollars_admin", "true")
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email: credentials.email,
+      password: credentials.password
+    })
+
+    if (error || !data.user?.email) {
+      toast.error(error?.message || "Invalid admin credentials")
+      setLoading(false)
+      return
+    }
+
+    if (authService.isAdmin(data.user.email)) {
       toast.success("Admin login successful!")
       router.push("/admin")
     } else {
-      toast.error("Invalid admin credentials")
+      await supabase.auth.signOut()
+      toast.error("This account is not authorized for admin access")
     }
 
     setLoading(false)
@@ -46,11 +58,12 @@ export default function AdminLoginPage() {
         <CardContent>
           <form onSubmit={handleLogin} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="username">Username</Label>
+              <Label htmlFor="email">Email</Label>
               <Input
-                id="username"
-                value={credentials.username}
-                onChange={(e) => setCredentials({ ...credentials, username: e.target.value })}
+                id="email"
+                type="email"
+                value={credentials.email}
+                onChange={(e) => setCredentials({ ...credentials, email: e.target.value })}
                 className="bg-slate-900/70 border-slate-700 focus:border-cyan-500 text-slate-100"
                 required
               />
@@ -76,7 +89,9 @@ export default function AdminLoginPage() {
               {loading ? "Signing In..." : "Sign In"}
             </Button>
 
-            <div className="text-xs text-slate-400 text-center mt-4">Demo credentials: admin / admin123</div>
+            <div className="text-xs text-slate-400 text-center mt-4">
+              Use a Supabase account listed in NEXT_PUBLIC_ADMIN_EMAILS.
+            </div>
           </form>
         </CardContent>
       </Card>

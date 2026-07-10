@@ -3,13 +3,14 @@
 import Link from "next/link"
 import { useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { Award, BarChart3, ClipboardList, Gift, LogOut, ReceiptText, Star, UserRound, Users } from "lucide-react"
+import { Award, BarChart3, ClipboardList, Gift, LogOut, ReceiptText, Settings, Star, UserRound, Users } from "lucide-react"
 import { useAuth } from "@/hooks/use-auth"
 import { DashboardHeader } from "@/components/dashboard-header"
 import { FloatingParticles } from "@/components/floating-particles"
 import { Button } from "@/components/ui/button"
 
 const links = [
+  { href: "/profile/edit", label: "Edit Profile", icon: Settings },
   { href: "/referrals", label: "Referrals", icon: Users },
   { href: "/transactions", label: "Transactions", icon: ReceiptText },
   { href: "/rewards", label: "Rewards", icon: Gift },

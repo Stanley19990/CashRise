@@ -1,31 +1,26 @@
 "use client"
 
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { useState } from "react"
-
-const countries = [
-  { code: "CM", name: "Cameroon", currency: "XAF" },
-]
+import { CountrySelect } from "@/components/CountrySelect"
+import { useCurrency } from "@/contexts/CurrencyContext"
 
 export function CountrySelector() {
-  const [selectedCountry, setSelectedCountry] = useState<string>("CM")
+  const { country, currency, formatMoney, setCountry } = useCurrency()
 
   return (
-    <section className="py-16 px-4 relative z-10">
-      <div className="max-w-md mx-auto text-center">
-        <h3 className="text-xl font-bold mb-4 text-cyan-200">CashRise is live in Cameroon</h3>
-        <Select value={selectedCountry} onValueChange={setSelectedCountry}>
-          <SelectTrigger className="cr-glass text-cyan-100 border-cyan-400/30">
-            <SelectValue placeholder="Cameroon (XAF)" />
-          </SelectTrigger>
-          <SelectContent className="bg-slate-900 border-cyan-500/40">
-            {countries.map((country) => (
-              <SelectItem key={country.code} value={country.code} className="text-cyan-200 hover:bg-cyan-500/10">
-                {country.name} ({country.currency})
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+    <section className="relative z-30 px-4 py-16 pointer-events-auto">
+      <div className="mx-auto max-w-md text-center pointer-events-auto">
+        <h3 className="text-xl font-bold mb-3 text-cyan-200">Choose your country and local currency</h3>
+        <p className="mb-4 text-sm text-slate-400">
+          Prices and earnings update across CashRise using your selected currency.
+        </p>
+        <CountrySelect value={country} onChange={(nextCountry) => void setCountry(nextCountry)} />
+        <div className="mt-4 rounded-2xl border border-cyan-400/20 bg-slate-950/50 p-4 text-left">
+          <div className="text-sm text-slate-400">Current selection</div>
+          <div className="mt-1 font-semibold text-slate-100">
+            {country.name} ({currency})
+          </div>
+          <div className="mt-2 text-sm text-emerald-300">Example machine price: {formatMoney(2500)}</div>
+        </div>
       </div>
     </section>
   )

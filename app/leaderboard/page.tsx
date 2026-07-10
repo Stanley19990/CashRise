@@ -3,9 +3,11 @@
 import { useEffect, useState } from "react"
 import { AppScreen } from "@/components/app-screen"
 import { supabase } from "@/lib/supabase"
-import { formatNumber, toNumber } from "@/lib/safe-data"
+import { toNumber } from "@/lib/safe-data"
+import { useCurrency } from "@/contexts/CurrencyContext"
 
 export default function LeaderboardPage() {
+  const { formatMoney } = useCurrency()
   const [leaders, setLeaders] = useState<any[]>([])
 
   useEffect(() => {
@@ -39,7 +41,7 @@ export default function LeaderboardPage() {
                   </p>
                   <p className="text-xs text-slate-500">{toNumber(leader.machines_owned)} machines</p>
                 </div>
-                <p className="text-sm font-bold text-emerald-300">{formatNumber(leader.total_earned)} XAF</p>
+                <p className="text-sm font-bold text-emerald-300">{formatMoney(toNumber(leader.total_earned))}</p>
               </div>
             ))}
           </div>

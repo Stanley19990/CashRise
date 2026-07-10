@@ -1,0 +1,157 @@
+{
+  "app": {
+    "name": "CashRise",
+    "tagline": "Investir | Jouer | Gagner"
+  },
+  "nav": {
+    "home": "Accueil",
+    "machines": "Machines",
+    "wallet": "Portefeuille",
+    "rewards": "Récompenses",
+    "more": "Plus",
+    "profile": "Profil",
+    "settings": "Paramètres",
+    "logout": "Déconnexion"
+  },
+  "auth": {
+    "signup": "Créer un compte",
+    "login": "Se connecter",
+    "fullName": "Nom complet",
+    "email": "Email",
+    "password": "Mot de passe",
+    "confirmPassword": "Confirmer le mot de passe",
+    "phone": "Téléphone (optionnel)",
+    "country": "Pays",
+    "referralCode": "Code de parrainage (optionnel)",
+    "alreadyHaveAccount": "Vous avez déjà un compte ?",
+    "noAccount": "Vous n'avez pas de compte ?",
+    "terms": "En créant un compte, vous acceptez nos Conditions d'utilisation et notre Politique de confidentialité"
+  },
+  "dashboard": {
+    "title": "Tableau de bord",
+    "totalBalance": "Solde total",
+    "totalEarned": "Total gagné",
+    "activeMachines": "Machines actives",
+    "todayEarnings": "Gains du jour",
+    "quickStats": "Statistiques rapides"
+  },
+  "machines": {
+    "title": "Mes machines",
+    "store": "Boutique de machines",
+    "buy": "Acheter une machine",
+    "claim": "Réclamer les gains",
+    "claimReady": "Prêt à réclamer !",
+    "timeRemaining": "Temps restant",
+    "noMachines": "Vous n'avez pas encore de machines. Visitez la boutique !",
+    "dailyEarnings": "Gains quotidiens",
+    "monthlyEarnings": "Gains mensuels",
+    "roiPeriod": "Période de ROI",
+    "days": "Jours",
+    "oneTimePayment": "Paiement unique",
+    "alreadyOwned": "✓ Déjà possédée",
+    "discount": "🔥 {percent}% DE RÉDUCTION",
+    "rarity": {
+      "common": "Commun",
+      "rare": "Rare",
+      "epic": "Épique",
+      "legendary": "Légendaire"
+    }
+  },
+  "wallet": {
+    "title": "Mon portefeuille",
+    "balance": "Solde",
+    "withdraw": "Retirer",
+    "deposit": "Déposer",
+    "transactionHistory": "Historique des transactions",
+    "noTransactions": "Aucune transaction pour le moment"
+  },
+  "rewards": {
+    "title": "Récompenses",
+    "dailyStreak": "Série quotidienne",
+    "luckySpin": "Roue chanceuse",
+    "spinNow": "Tourner maintenant !",
+    "nextSpinIn": "Prochain tour dans",
+    "congratulations": "Félicitations !",
+    "youWon": "Vous avez gagné"
+  },
+  "missions": {
+    "title": "Missions quotidiennes",
+    "completed": "Terminé",
+    "claim": "Réclamer la récompense",
+    "noMissions": "Aucune mission disponible aujourd'hui"
+  },
+  "achievements": {
+    "title": "Succès",
+    "locked": "Verrouillé",
+    "unlocked": "Déverrouillé",
+    "progress": "Progression"
+  },
+  "referrals": {
+    "title": "Parrainages",
+    "yourCode": "Votre code de parrainage",
+    "copyLink": "Copier le lien de parrainage",
+    "share": "Partager",
+    "totalReferrals": "Parrainages totaux",
+    "earnedFromReferrals": "Gagné grâce aux parrainages",
+    "noReferrals": "Aucun parrainage pour le moment. Partagez votre lien !",
+    "contest": "Concours mensuel",
+    "activeReferrals": "Actifs (achat effectué)",
+    "pendingReferrals": "En attente"
+  },
+  "leaderboard": {
+    "title": "Classement",
+    "weekly": "Hebdomadaire",
+    "monthly": "Mensuel",
+    "allTime": "Depuis le début",
+    "rank": "Rang",
+    "user": "Utilisateur",
+    "earnings": "Gains",
+    "you": "Vous"
+  },
+  "reviews": {
+    "title": "Avis de retrait",
+    "verified": "Retrait vérifié",
+    "justNow": "à l'instant",
+    "minutesAgo": "il y a {count} minutes",
+    "hoursAgo": "il y a {count} heures",
+    "daysAgo": "il y a {count} jours",
+    "leaveReview": "Laisser un avis",
+    "rateExperience": "Notez votre expérience",
+    "submit": "Envoyer l'avis",
+    "totalWithdrawn": "Total retiré par les utilisateurs",
+    "happyUsers": "Utilisateurs satisfaits",
+    "averageRating": "Note moyenne"
+  },
+  "profile": {
+    "title": "Profil",
+    "edit": "Modifier le profil",
+    "country": "Pays",
+    "language": "Langue",
+    "changePassword": "Changer le mot de passe",
+    "saveChanges": "Enregistrer"
+  },
+  "common": {
+    "loading": "Chargement...",
+    "error": "Une erreur est survenue",
+    "retry": "Réessayer",
+    "cancel": "Annuler",
+    "confirm": "Confirmer",
+    "success": "Succès !",
+    "back": "Retour",
+    "next": "Suivant",
+    "done": "Terminé",
+    "comingSoon": "Bientôt disponible",
+    "noData": "Aucune donnée disponible"
+  },
+  "payment": {
+    "selectMethod": "Choisir le mode de paiement",
+    "fapshi": "Fapshi (Mobile Money Cameroun)",
+    "futurapay": "Futurapay (International)",
+    "processing": "Paiement en cours...",
+    "success": "Paiement réussi !",
+    "failed": "Paiement échoué",
+    "amount": "Montant",
+    "depositToWallet": "Déposer dans le portefeuille",
+    "withdrawFromWallet": "Retirer du portefeuille"
+  }
+}

@@ -15,7 +15,9 @@ interface Withdrawal {
   amount: number
   amount_usd: number
   method: string
-  status: 'pending' | 'completed' | 'rejected'
+  payment_method?: string
+  payment_details?: { account_details?: string } | null
+  status: 'pending' | 'approved' | 'completed' | 'rejected'
   account_details: string
   created_at: string
   users: {
@@ -60,18 +62,14 @@ export function WithdrawalManagement() {
     setProcessing(withdrawalId)
     
     try {
-      const { error } = await supabase
-        .from('withdrawals')
-        .update({ status })
-        .eq('id', withdrawalId)
+      const updatePayload: Record<string, any> = {
+        status,
+        processed_at: new Date().toISOString()
+      }
 
-      if (error) throw error
-
-      // If completed, update user's wallet balance (deduct the amount)
       if (status === 'completed') {
         const withdrawal = withdrawals.find(w => w.id === withdrawalId)
         if (withdrawal) {
-          // Get current user balance first
           const { data: userData, error: fetchError } = await supabase
             .from('users')
             .select('wallet_balance')
@@ -80,18 +78,30 @@ export function WithdrawalManagement() {
 
           if (fetchError) throw fetchError
 
-          const newWalletBalance = (userData?.wallet_balance || 0) - withdrawal.amount_usd
+          const currentBalance = toNumber(userData?.wallet_balance)
+          const withdrawalAmount = toNumber(withdrawal.amount)
+
+          if (currentBalance < withdrawalAmount) {
+            throw new Error('User balance is lower than the requested withdrawal amount')
+          }
 
           const { error: userError } = await supabase
             .from('users')
             .update({ 
-              wallet_balance: newWalletBalance
+              wallet_balance: currentBalance - withdrawalAmount
             })
             .eq('id', withdrawal.user_id)
 
           if (userError) throw userError
         }
       }
+
+      const { error } = await supabase
+        .from('withdrawals')
+        .update(updatePayload)
+        .eq('id', withdrawalId)
+
+      if (error) throw error
 
       toast.success(`Withdrawal ${status === 'completed' ? 'approved' : 'rejected'} successfully!`)
       await fetchWithdrawals()
@@ -106,6 +116,7 @@ export function WithdrawalManagement() {
   const getStatusColor = (status: string) => {
     switch (status) {
       case "completed":
+      case "approved":
         return "bg-green-500/10 text-green-400 border-green-500/20"
       case "pending":
         return "bg-yellow-500/10 text-yellow-400 border-yellow-500/20"
@@ -180,14 +191,14 @@ export function WithdrawalManagement() {
                     {withdrawal.users?.username || withdrawal.users?.email || 'Unknown User'}
                   </div>
                   <div className="text-sm text-slate-400">
-                    {getMethodDisplay(withdrawal.method)}
+                    {getMethodDisplay(withdrawal.method || withdrawal.payment_method || "Not provided")}
                   </div>
                   <div className="text-xs text-slate-500 mt-1">
                     Requested {formatDate(withdrawal.created_at)}
                   </div>
-                  {withdrawal.account_details && (
+                  {(withdrawal.account_details || withdrawal.payment_details?.account_details) && (
                     <div className="text-xs text-slate-400 mt-1">
-                      Account: {withdrawal.account_details}
+                      Account: {withdrawal.account_details || withdrawal.payment_details?.account_details}
                     </div>
                   )}
                 </div>

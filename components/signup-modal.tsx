@@ -5,12 +5,16 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useState, useEffect } from "react"
 import { useAuth } from "@/hooks/use-auth"
 import { Loader2, Gift, LogIn } from "lucide-react"
 import { CashRiseLogo } from "@/components/cashrise-logo"
 import { useLanguage } from "@/components/language-provider"
+import { CountrySelect } from "@/components/CountrySelect"
+import { CountryPhoneInput } from "@/components/CountryPhoneInput"
+import { CountryInfo, getPreferredLanguageForCountry } from "@/lib/currency"
+import { formatPhoneForCountry } from "@/lib/phone"
+import { useCurrency } from "@/contexts/CurrencyContext"
 
 interface SignupModalProps {
   open: boolean
@@ -20,8 +24,6 @@ interface SignupModalProps {
   onSwitchToLogin?: () => void
 }
 
-const africanCountries = ["Cameroon"]
-
 export function SignupModal({ 
   open, 
   onOpenChange, 
@@ -29,7 +31,8 @@ export function SignupModal({
   onSuccess,
   onSwitchToLogin
 }: SignupModalProps) {
-  const { t } = useLanguage()
+  const { t, preference, setLanguage } = useLanguage()
+  const { country: selectedCountry, setCountry: setGlobalCountry } = useCurrency()
   const { signUp } = useAuth()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
@@ -40,7 +43,8 @@ export function SignupModal({
     password: "",
     confirmPassword: "",
     fullName: "",
-    country: "Cameroon",
+    country: selectedCountry.name,
+    countryData: selectedCountry as CountryInfo,
     phone: "",
   })
 
@@ -50,25 +54,34 @@ export function SignupModal({
     }
   }, [initialReferralCode])
 
+  useEffect(() => {
+    if (!open) return
+    setFormData((prev) => ({
+      ...prev,
+      country: selectedCountry.name,
+      countryData: selectedCountry
+    }))
+  }, [open, selectedCountry])
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
     setError("")
 
     if (formData.password !== formData.confirmPassword) {
-      setError("Passwords do not match")
+      setError(t("passwordsDoNotMatch"))
       setLoading(false)
       return
     }
 
     if (!formData.fullName.trim()) {
-      setError("Full name is required")
+      setError(t("fullNameRequired"))
       setLoading(false)
       return
     }
 
     if (!formData.country) {
-      setError("Please select your country")
+      setError(t("countryRequired"))
       setLoading(false)
       return
     }
@@ -81,13 +94,14 @@ export function SignupModal({
         formData.password,
         formData.fullName,
         formData.country,
-        formData.phone,
+        formatPhoneForCountry(formData.phone, formData.countryData),
         referralCode,
+        formData.countryData,
       )
 
       if (result?.error) {
         if (result.error.includes("duplicate key")) {
-          setError("This email or phone is already registered. Please log in instead.")
+          setError(t("duplicateAccount"))
         } else {
           setError(result.error)
         }
@@ -97,7 +111,7 @@ export function SignupModal({
       }
     } catch (err) {
       console.error("Signup error occurred", err)
-      setError("An unexpected error occurred. Please try again later.")
+      setError(t("unexpectedError"))
     } finally {
       setLoading(false)
     }
@@ -105,6 +119,19 @@ export function SignupModal({
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }))
+    if (error) setError("")
+  }
+
+  const handleCountryChange = (country: CountryInfo) => {
+    setFormData(prev => ({
+      ...prev,
+      country: country.name,
+      countryData: country
+    }))
+    if (preference === "system") {
+      setLanguage(getPreferredLanguageForCountry(country.code))
+    }
+    void setGlobalCountry(country)
     if (error) setError("")
   }
 
@@ -126,7 +153,7 @@ export function SignupModal({
             {t("joinCashRise")}
           </DialogTitle>
           <DialogDescription className="text-center text-slate-400 text-sm sm:text-base px-2">
-            Create your account and start earning with AI gaming machines
+            {t("signupDescription")}
           </DialogDescription>
         </DialogHeader>
 
@@ -141,13 +168,13 @@ export function SignupModal({
             <div className="p-2 sm:p-3 rounded-lg bg-green-500/10 border border-green-500/20">
               <div className="flex items-center space-x-2 text-green-400">
                 <Gift className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0" />
-                <span className="text-xs sm:text-sm font-medium">Referral Code Applied</span>
+                <span className="text-xs sm:text-sm font-medium">{t("referralApplied")}</span>
               </div>
               <p className="text-green-300 text-xs sm:text-sm mt-1 break-all">
-                Using code: <strong>{referralCode}</strong>
+                {t("usingCode")}: <strong>{referralCode}</strong>
               </p>
               <p className="text-green-200 text-xs mt-1">
-                You'll get special benefits when you join!
+                {t("referralBenefit")}
               </p>
             </div>
           )}
@@ -162,7 +189,7 @@ export function SignupModal({
               onChange={(e) => handleInputChange('fullName', e.target.value)}
               className="bg-slate-900/70 border-cyan-500/40 text-slate-100 text-sm sm:text-base h-10 sm:h-auto"
               required
-              placeholder="Enter your full name"
+              placeholder={t("fullNamePlaceholder")}
             />
           </div>
 
@@ -177,7 +204,7 @@ export function SignupModal({
               onChange={(e) => handleInputChange('email', e.target.value)}
               className="bg-slate-900/70 border-cyan-500/40 text-slate-100 text-sm sm:text-base h-10 sm:h-auto"
               required
-              placeholder="Enter your email"
+              placeholder={t("emailPlaceholder")}
             />
           </div>
 
@@ -185,30 +212,19 @@ export function SignupModal({
             <Label htmlFor="country" className="text-slate-200 text-sm sm:text-base">
               {t("country")}
             </Label>
-            <Select value={formData.country} onValueChange={(value) => handleInputChange('country', value)}>
-              <SelectTrigger className="bg-slate-900/70 border-cyan-500/40 text-slate-100 text-sm sm:text-base h-10 sm:h-auto">
-                <SelectValue placeholder="Select your country" />
-              </SelectTrigger>
-              <SelectContent className="bg-slate-900 border-slate-700 max-h-[200px] sm:max-h-[300px]">
-                {africanCountries.map((country) => (
-                  <SelectItem key={country} value={country} className="text-sm sm:text-base">
-                    {country}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <CountrySelect value={formData.countryData} onChange={handleCountryChange} disabled={loading} />
           </div>
 
           <div>
             <Label htmlFor="phone" className="text-slate-200 text-sm sm:text-base">
               {t("phoneOptional")}
             </Label>
-            <Input
+            <CountryPhoneInput
               id="phone"
+              country={formData.countryData}
               value={formData.phone}
-              onChange={(e) => handleInputChange('phone', e.target.value)}
-              className="bg-slate-900/70 border-cyan-500/40 text-slate-100 text-sm sm:text-base h-10 sm:h-auto"
-              placeholder="Enter your phone number"
+              onChange={(value) => handleInputChange('phone', value)}
+              disabled={loading}
             />
           </div>
 
@@ -223,14 +239,14 @@ export function SignupModal({
               onChange={(e) => handleInputChange('password', e.target.value)}
               className="bg-slate-900/70 border-cyan-500/40 text-slate-100 text-sm sm:text-base h-10 sm:h-auto"
               required
-              placeholder="Create a password"
+              placeholder={t("passwordPlaceholder")}
               minLength={6}
             />
           </div>
 
           <div>
             <Label htmlFor="confirmPassword" className="text-slate-200 text-sm sm:text-base">
-              Confirm Password
+              {t("confirmPassword")}
             </Label>
             <Input
               id="confirmPassword"
@@ -239,20 +255,20 @@ export function SignupModal({
               onChange={(e) => handleInputChange('confirmPassword', e.target.value)}
               className="bg-slate-900/70 border-cyan-500/40 text-slate-100 text-sm sm:text-base h-10 sm:h-auto"
               required
-              placeholder="Confirm your password"
+              placeholder={t("confirmPasswordPlaceholder")}
             />
           </div>
 
           <div>
             <Label htmlFor="referralCode" className="text-slate-200 text-sm sm:text-base">
-              Referral Code (Optional)
+              {t("referralCodeOptional")}
             </Label>
             <Input
               id="referralCode"
               value={referralCode}
               onChange={(e) => setReferralCode(e.target.value)}
               className="bg-slate-900/70 border-cyan-500/40 text-slate-100 text-sm sm:text-base h-10 sm:h-auto"
-              placeholder="Enter referral code if you have one"
+              placeholder={t("referralPlaceholder")}
             />
           </div>
 
@@ -271,7 +287,7 @@ export function SignupModal({
             </div>
             <div className="relative flex justify-center text-xs uppercase">
               <span className="bg-slate-900 px-2 text-slate-400">
-                Already have an account?
+                {t("alreadyHaveAccount")}
               </span>
             </div>
           </div>
@@ -287,7 +303,7 @@ export function SignupModal({
           </Button>
 
           <p className="text-xs text-slate-400 text-center px-2">
-            By creating an account, you agree to our Terms of Service and Privacy Policy
+            {t("termsNotice")}
           </p>
         </form>
       </DialogContent>

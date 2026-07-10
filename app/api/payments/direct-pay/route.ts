@@ -1,12 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
 import { createNotificationAndPush } from '@/lib/push-server'
-import { requireAuthenticatedUser } from '@/lib/server-auth'
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
+import { createServiceClient, requireAuthenticatedUser } from '@/lib/server-auth'
 
 const FAPSHI_BASE_URL = process.env.FAPSHI_BASE_URL || process.env.FAPSHI_ENVIRONMENT || 'https://live.fapshi.com'
 
@@ -23,6 +17,14 @@ export async function POST(request: NextRequest) {
   try {
     const auth = await requireAuthenticatedUser(request)
     if (auth.response) return auth.response
+    const supabase = createServiceClient()
+
+    if (!process.env.FAPSHI_API_USER || !process.env.FAPSHI_API_KEY) {
+      return NextResponse.json(
+        { success: false, error: 'Missing Fapshi payment configuration' },
+        { status: 500 }
+      )
+    }
 
     const { 
       amount, 

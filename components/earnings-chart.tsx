@@ -7,7 +7,8 @@ import { useEffect, useState } from "react"
 import { supabase } from "@/lib/supabase"
 import { useAuth } from "@/hooks/use-auth"
 import { toast } from "sonner"
-import { formatNumber, toNumber } from "@/lib/safe-data"
+import { toNumber } from "@/lib/safe-data"
+import { useCurrency } from "@/contexts/CurrencyContext"
 
 interface EarningsData {
   date: string
@@ -26,6 +27,7 @@ interface ChartStats {
 
 export function EarningsChart() {
   const { user } = useAuth()
+  const { formatMoney } = useCurrency()
   const [earningsData, setEarningsData] = useState<EarningsData[]>([])
   const [chartStats, setChartStats] = useState<ChartStats>({
     sevenDayTotal: 0,
@@ -67,17 +69,16 @@ export function EarningsChart() {
             month: 'short', 
             day: 'numeric' 
           })
-          const earningsUSD = toNumber(earning.amount)
-          const earningsXAF = earningsUSD * 600 // Convert to XAF
+          const earningsXAF = toNumber(earning.amount)
           
           if (dailyEarnings[date]) {
             dailyEarnings[date].earnings_xaf += earningsXAF
-            dailyEarnings[date].earnings_usd += earningsUSD
+            dailyEarnings[date].earnings_usd += earningsXAF / 600
             dailyEarnings[date].machine_count.add(earning.machine_id)
           } else {
             dailyEarnings[date] = {
               earnings_xaf: earningsXAF,
-              earnings_usd: earningsUSD,
+              earnings_usd: earningsXAF / 600,
               machine_count: new Set([earning.machine_id])
             }
           }
@@ -210,7 +211,7 @@ export function EarningsChart() {
           </div>
         </div>
         <p className="text-slate-300 text-sm">
-          Your earnings growth from machines and ad watching (in XAF)
+          Your earnings growth from machines and ad watching
         </p>
       </CardHeader>
       <CardContent>
@@ -229,7 +230,7 @@ export function EarningsChart() {
                 stroke="#64748b" 
                 fontSize={12} 
                 tick={{ fill: '#cbd5e1' }}
-                tickFormatter={(value) => `${formatNumber(value)} XAF`}
+                tickFormatter={(value) => formatMoney(toNumber(value))}
               />
               <Tooltip
                 contentStyle={{
@@ -239,7 +240,7 @@ export function EarningsChart() {
                   color: "#f1f5f9",
                 }}
                 formatter={(value: number) => [
-                  `${formatNumber(value)} XAF`, 
+                  formatMoney(toNumber(value)),
                   "Earnings"
                 ]}
                 labelFormatter={(label) => `Date: ${label}`}
@@ -260,9 +261,9 @@ export function EarningsChart() {
               <Calendar className="h-4 w-4 text-emerald-300" />
               <div className="text-lg font-bold text-emerald-300">
                 {timeRange === '7days' 
-                  ? formatNumber(chartStats.sevenDayTotal) 
-                  : formatNumber(chartStats.thirtyDayTotal)
-                } XAF
+                  ? formatMoney(chartStats.sevenDayTotal)
+                  : formatMoney(chartStats.thirtyDayTotal)
+                }
               </div>
             </div>
             <div className="text-xs text-slate-400">
@@ -274,7 +275,7 @@ export function EarningsChart() {
             <div className="flex items-center justify-center space-x-1 mb-1">
               <Zap className="h-4 w-4 text-cyan-300" />
               <div className="text-lg font-bold text-cyan-300">
-                {formatNumber(chartStats.bestDay)} XAF
+                {formatMoney(chartStats.bestDay)}
               </div>
             </div>
             <div className="text-xs text-slate-400">Best Day</div>
@@ -282,7 +283,7 @@ export function EarningsChart() {
           
           <div className="text-center bg-slate-900/60 rounded-2xl p-3 border border-cyan-400/10">
             <div className="text-lg font-bold text-amber-300 mb-1">
-              {formatNumber(Math.round(chartStats.dailyAverage))} XAF
+              {formatMoney(Math.round(chartStats.dailyAverage))}
             </div>
             <div className="text-xs text-slate-400">Daily Average</div>
           </div>

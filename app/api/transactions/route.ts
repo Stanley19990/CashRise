@@ -1,14 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
+import { createServiceClient, requireAuthenticatedUser } from '@/lib/server-auth'
 
 export async function POST(request: NextRequest) {
   try {
+    const auth = await requireAuthenticatedUser(request)
+    if (auth.response) return auth.response
+
+    const supabase = createServiceClient()
     const { userId, machineId, machineName, amount, externalId, transId, type } = await request.json()
+
+    if (userId !== auth.user.id) {
+      return NextResponse.json({ success: false, error: 'Transaction user mismatch' }, { status: 403 })
+    }
 
     console.log('💾 Saving transaction:', { externalId, transId, amount, machineId })
 

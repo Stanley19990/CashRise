@@ -1,0 +1,157 @@
+{
+  "app": {
+    "name": "CashRise",
+    "tagline": "Invest | Play | Earn"
+  },
+  "nav": {
+    "home": "Home",
+    "machines": "Machines",
+    "wallet": "Wallet",
+    "rewards": "Rewards",
+    "more": "More",
+    "profile": "Profile",
+    "settings": "Settings",
+    "logout": "Logout"
+  },
+  "auth": {
+    "signup": "Create Account",
+    "login": "Sign In",
+    "fullName": "Full Name",
+    "email": "Email",
+    "password": "Password",
+    "confirmPassword": "Confirm Password",
+    "phone": "Phone (Optional)",
+    "country": "Country",
+    "referralCode": "Referral Code (Optional)",
+    "alreadyHaveAccount": "Already have an account?",
+    "noAccount": "Don't have an account?",
+    "terms": "By creating an account, you agree to our Terms of Service and Privacy Policy"
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "totalBalance": "Total Balance",
+    "totalEarned": "Total Earned",
+    "activeMachines": "Active Machines",
+    "todayEarnings": "Today's Earnings",
+    "quickStats": "Quick Stats"
+  },
+  "machines": {
+    "title": "My Machines",
+    "store": "Machine Store",
+    "buy": "Buy Machine",
+    "claim": "Claim Earnings",
+    "claimReady": "Ready to Claim!",
+    "timeRemaining": "Time Remaining",
+    "noMachines": "You don't have any machines yet. Visit the store!",
+    "dailyEarnings": "Daily Earnings",
+    "monthlyEarnings": "Monthly Earnings",
+    "roiPeriod": "ROI Period",
+    "days": "Days",
+    "oneTimePayment": "One-time payment",
+    "alreadyOwned": "✓ Already Owned",
+    "discount": "🔥 {percent}% DISCOUNT",
+    "rarity": {
+      "common": "Common",
+      "rare": "Rare",
+      "epic": "Epic",
+      "legendary": "Legendary"
+    }
+  },
+  "wallet": {
+    "title": "My Wallet",
+    "balance": "Balance",
+    "withdraw": "Withdraw",
+    "deposit": "Deposit",
+    "transactionHistory": "Transaction History",
+    "noTransactions": "No transactions yet"
+  },
+  "rewards": {
+    "title": "Rewards",
+    "dailyStreak": "Daily Streak",
+    "luckySpin": "Lucky Spin",
+    "spinNow": "Spin Now!",
+    "nextSpinIn": "Next spin in",
+    "congratulations": "Congratulations!",
+    "youWon": "You won"
+  },
+  "missions": {
+    "title": "Daily Missions",
+    "completed": "Completed",
+    "claim": "Claim Reward",
+    "noMissions": "No missions available today"
+  },
+  "achievements": {
+    "title": "Achievements",
+    "locked": "Locked",
+    "unlocked": "Unlocked",
+    "progress": "Progress"
+  },
+  "referrals": {
+    "title": "Referrals",
+    "yourCode": "Your Referral Code",
+    "copyLink": "Copy Referral Link",
+    "share": "Share",
+    "totalReferrals": "Total Referrals",
+    "earnedFromReferrals": "Earned from Referrals",
+    "noReferrals": "No referrals yet. Share your link!",
+    "contest": "Monthly Contest",
+    "activeReferrals": "Active (Purchased)",
+    "pendingReferrals": "Pending"
+  },
+  "leaderboard": {
+    "title": "Leaderboard",
+    "weekly": "Weekly",
+    "monthly": "Monthly",
+    "allTime": "All Time",
+    "rank": "Rank",
+    "user": "User",
+    "earnings": "Earnings",
+    "you": "You"
+  },
+  "reviews": {
+    "title": "Withdrawal Reviews",
+    "verified": "Verified Withdrawal",
+    "justNow": "just now",
+    "minutesAgo": "{count} minutes ago",
+    "hoursAgo": "{count} hours ago",
+    "daysAgo": "{count} days ago",
+    "leaveReview": "Leave a Review",
+    "rateExperience": "Rate your experience",
+    "submit": "Submit Review",
+    "totalWithdrawn": "Total Withdrawn by Users",
+    "happyUsers": "Happy Users",
+    "averageRating": "Average Rating"
+  },
+  "profile": {
+    "title": "Profile",
+    "edit": "Edit Profile",
+    "country": "Country",
+    "language": "Language",
+    "changePassword": "Change Password",
+    "saveChanges": "Save Changes"
+  },
+  "common": {
+    "loading": "Loading...",
+    "error": "Something went wrong",
+    "retry": "Retry",
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "success": "Success!",
+    "back": "Back",
+    "next": "Next",
+    "done": "Done",
+    "comingSoon": "Coming Soon",
+    "noData": "No data available"
+  },
+  "payment": {
+    "selectMethod": "Select Payment Method",
+    "fapshi": "Fapshi (Cameroon Mobile Money)",
+    "futurapay": "Futurapay (International)",
+    "processing": "Processing payment...",
+    "success": "Payment Successful!",
+    "failed": "Payment Failed",
+    "amount": "Amount",
+    "depositToWallet": "Deposit to Wallet",
+    "withdrawFromWallet": "Withdraw from Wallet"
+  }
+}

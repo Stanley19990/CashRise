@@ -7,6 +7,7 @@ import { Wallet, DollarSign, Coins, TrendingUp, RefreshCw, Cpu } from "lucide-re
 import { useState, useEffect } from "react"
 import { supabase } from "@/lib/supabase"
 import { firstRelation, formatNumber, toNumber } from "@/lib/safe-data"
+import { useCurrency } from "@/contexts/CurrencyContext"
 
 // Extended user type to include database fields
 interface DatabaseUser {
@@ -32,6 +33,7 @@ interface DatabaseUser {
 
 export function WalletOverview() {
   const { user: authUser, refreshUser } = useAuth()
+  const { formatMoney } = useCurrency()
   const [loading, setLoading] = useState(false)
   const [stats, setStats] = useState({
     ownedMachines: 0,
@@ -173,7 +175,7 @@ export function WalletOverview() {
         </CardHeader>
         <CardContent>
           <div className="text-2xl font-bold text-emerald-300">
-            {formatNumber(walletBalance)} XAF
+            {formatMoney(walletBalance)}
           </div>
           <p className="text-xs text-slate-500 mt-1">Available for withdrawal</p>
         </CardContent>
@@ -199,7 +201,7 @@ export function WalletOverview() {
         </CardHeader>
         <CardContent>
           <div className="text-2xl font-bold text-amber-300">
-            {formatNumber(stats.totalDailyEarnings)} XAF
+            {formatMoney(stats.totalDailyEarnings)}
           </div>
           <p className="text-xs text-slate-500 mt-1">From {stats.ownedMachines} machines</p>
         </CardContent>
@@ -213,7 +215,7 @@ export function WalletOverview() {
         </CardHeader>
         <CardContent>
           <div className="text-2xl font-bold text-emerald-300">
-            {formatNumber(totalEarned)} XAF
+            {formatMoney(totalEarned)}
           </div>
           <p className="text-xs text-slate-500 mt-1">Lifetime earnings</p>
         </CardContent>

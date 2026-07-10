@@ -4,6 +4,7 @@
 import { createContext, useContext, useEffect, useState, useCallback } from "react"
 import { User } from "@supabase/supabase-js"
 import { supabase } from "@/lib/supabase"
+import type { CountryInfo } from "@/lib/currency"
 
 interface AuthContextType {
   user: User | null
@@ -14,7 +15,8 @@ interface AuthContextType {
     fullName: string,
     country: string,
     phone?: string,
-    referralCode?: string
+    referralCode?: string,
+    countryData?: CountryInfo
   ) => Promise<{ user: User | null; error: string | null }>
   signIn: (email: string, password: string) => Promise<{ user: User | null; error: string | null }>
   signOut: () => Promise<void>
@@ -79,7 +81,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     fullName: string,
     country: string,
     phone?: string,
-    referralCode?: string
+    referralCode?: string,
+    countryData?: CountryInfo
   ): Promise<{ user: User | null; error: string | null }> => {
     try {
       console.log("🚀 Starting signup process...")
@@ -94,6 +97,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             username: fullName,
             full_name: fullName,
             country,
+            countryData: countryData || null,
             phone: phone || null,
           },
         },
@@ -136,6 +140,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             email: data.user.email,
             fullName,
             country,
+            countryData: countryData || null,
             phone,
             referralCode: referralCode || null,
             generatedReferralCode: newUserReferralCode,

@@ -4,7 +4,7 @@ export default function manifest(): MetadataRoute.Manifest {
   return {
     name: "CashRise",
     short_name: "CashRise",
-    description: "CashRise machine earnings platform",
+    description: "CashRise AI investment platform",
     start_url: "/dashboard",
     scope: "/",
     display: "standalone",
@@ -12,12 +12,12 @@ export default function manifest(): MetadataRoute.Manifest {
     theme_color: "#0f0f1a",
     icons: [
       {
-        src: "/placeholder-logo.svg",
+        src: "/cashrise-logo.svg",
         sizes: "any",
         type: "image/svg+xml"
       },
       {
-        src: "/placeholder-logo.svg",
+        src: "/cashrise-logo.svg",
         sizes: "any",
         type: "image/svg+xml",
         purpose: "maskable"

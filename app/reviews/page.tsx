@@ -4,9 +4,11 @@ import { useEffect, useState } from "react"
 import { Star } from "lucide-react"
 import { AppScreen } from "@/components/app-screen"
 import { supabase } from "@/lib/supabase"
-import { formatDate, formatNumber } from "@/lib/safe-data"
+import { formatDate, toNumber } from "@/lib/safe-data"
+import { useCurrency } from "@/contexts/CurrencyContext"
 
 export default function ReviewsPage() {
+  const { formatMoney } = useCurrency()
   const [withdrawals, setWithdrawals] = useState<any[]>([])
 
   useEffect(() => {
@@ -45,7 +47,7 @@ export default function ReviewsPage() {
                       ))}
                     </div>
                   </div>
-                  <p className="text-sm text-slate-300">Withdrew {formatNumber(item.amount)} XAF successfully.</p>
+                  <p className="text-sm text-slate-300">Withdrew {formatMoney(toNumber(item.amount))} successfully.</p>
                   <p className="mt-1 text-xs text-slate-500">{formatDate(item.processed_at || item.requested_at)}</p>
                 </div>
               )

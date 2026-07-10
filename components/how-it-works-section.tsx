@@ -2,6 +2,7 @@
 
 import { Card } from "@/components/ui/card"
 import { useState } from "react"
+import { useCurrency } from "@/contexts/CurrencyContext"
 
 const steps = [
   {
@@ -35,6 +36,7 @@ const steps = [
 ]
 
 export function HowItWorksSection() {
+  const { formatMoney } = useCurrency()
   const [activeStep, setActiveStep] = useState<number | null>(null)
 
   return (
@@ -94,7 +96,7 @@ export function HowItWorksSection() {
             <div className="text-slate-300">Automation Precision</div>
           </div>
           <div className="text-center p-6 cr-glass rounded-2xl border border-cyan-400/20">
-            <div className="text-3xl font-bold text-amber-300">847M XAF</div>
+            <div className="text-3xl font-bold text-amber-300">{formatMoney(847000000)}</div>
             <div className="text-slate-300">Machine Earnings Tracked</div>
           </div>
         </div>

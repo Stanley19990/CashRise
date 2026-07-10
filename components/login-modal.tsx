@@ -40,14 +40,14 @@ export function LoginModal({ open, onOpenChange }: LoginModalProps) {
 
       if (!result.user) {
         // If the user object is null, check for error message
-        setError(result.error || "Login failed. Please try again.")
+        setError(result.error || t("loginFailed"))
       } else {
         onOpenChange(false)
         router.push("/dashboard")
       }
     } catch (err: any) {
       console.error("Login error occurred:", err)
-      setError(err?.message || "An error occurred. Please try again.")
+      setError(err?.message || t("genericError"))
     } finally {
       setLoading(false)
     }
@@ -72,7 +72,7 @@ export function LoginModal({ open, onOpenChange }: LoginModalProps) {
           </div>
           <DialogTitle className="text-2xl font-bold text-center">{t("welcomeBack")}</DialogTitle>
           <DialogDescription className="text-center text-slate-400">
-            Login to your CashRise account and continue earning
+            {t("loginDescription")}
           </DialogDescription>
         </DialogHeader>
 
@@ -117,7 +117,7 @@ export function LoginModal({ open, onOpenChange }: LoginModalProps) {
               className="text-xs text-cyan-200 hover:text-cyan-100 hover:underline flex items-center justify-end gap-1"
             >
               <Key className="h-3 w-3" />
-              Forgot Password?
+              {t("forgotPassword")}
             </button>
           </div>
 
@@ -131,7 +131,7 @@ export function LoginModal({ open, onOpenChange }: LoginModalProps) {
           </Button>
 
           <div className="text-center text-sm text-slate-400">
-            Don't have an account?{" "}
+            {t("noAccount")}{" "}
             <button
               type="button"
               onClick={handleSignup}

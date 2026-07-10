@@ -1,12 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
-import { createClient } from "@supabase/supabase-js"
 import { createNotificationAndPush } from "@/lib/push-server"
-import { getAuthenticatedUser } from "@/lib/server-auth"
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
+import { createServiceClient, getAuthenticatedUser } from "@/lib/server-auth"
+import { getPreferredLanguageForCountry, normalizeCountry } from "@/lib/currency"
 
 const generateReferralCode = (fullName: string, userId: string): string => {
   const cleanName = fullName
@@ -31,11 +26,13 @@ const generateUsername = (fullName: string): string => {
 
 export async function POST(request: NextRequest) {
   try {
+    const supabase = createServiceClient()
     const {
       userId,
       email,
       fullName,
       country,
+      countryData,
       phone,
       referralCode,
       generatedReferralCode,
@@ -114,12 +111,16 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    const normalizedCountry = normalizeCountry(countryData || country)
+
     const userProfile: Record<string, any> = {
       id: userId,
       email: authEmail,
       username: usernameForUser,
       full_name: fullName,
-      country,
+      country: normalizedCountry,
+      preferredLanguage: getPreferredLanguageForCountry(normalizedCountry.code),
+      lastCurrencyUpdate: new Date().toISOString(),
       phone: phone || null,
       referral_code: referralCodeForUser
     }

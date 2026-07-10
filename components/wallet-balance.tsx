@@ -7,7 +7,8 @@ import { Wallet, DollarSign, Coins, TrendingUp, Info, RefreshCw } from "lucide-r
 import { useState, useEffect } from "react"
 import { supabase } from "@/lib/supabase"
 import { toast } from "sonner"
-import { firstRelation, formatNumber, toNumber } from "@/lib/safe-data"
+import { firstRelation, toNumber } from "@/lib/safe-data"
+import { useCurrency } from "@/contexts/CurrencyContext"
 
 interface WalletStats {
   total_machines: number
@@ -26,6 +27,7 @@ interface DatabaseUser {
 
 export function WalletBalance({ wallet: initialWallet }: { wallet: number }) {
   const { user: authUser, refreshUser } = useAuth()
+  const { formatMoney } = useCurrency()
   const [loading, setLoading] = useState(false)
   const [walletBalance, setWalletBalance] = useState(initialWallet)
   const [totalEarned, setTotalEarned] = useState(0)
@@ -172,12 +174,12 @@ export function WalletBalance({ wallet: initialWallet }: { wallet: number }) {
           />
         </CardTitle>
         <p className="text-slate-300 text-sm">
-          Your CashRise wallet supports two currencies: XAF for real money and CR tokens for earnings from machines and ad watching.
+          Your CashRise wallet shows real money in your selected currency and CR tokens for earnings from machines and ad watching.
         </p>
       </CardHeader>
       <CardContent>
         <div className="grid md:grid-cols-2 gap-6">
-          {/* XAF Balance */}
+          {/* Money Balance */}
           <div className="bg-gradient-to-br from-emerald-500/10 to-cyan-500/10 border border-emerald-500/20 rounded-2xl p-6">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center space-x-2">
@@ -186,10 +188,10 @@ export function WalletBalance({ wallet: initialWallet }: { wallet: number }) {
               </div>
             </div>
             <div className="text-3xl font-bold text-emerald-300 mb-2">
-              {formatNumber(walletBalance)} XAF
+              {formatMoney(walletBalance)}
             </div>
             <p className="text-xs text-emerald-100/70">
-              Available for withdrawals • Min: 3,000 XAF
+              Available for withdrawals • Min: {formatMoney(3000)}
             </p>
           </div>
 
@@ -205,7 +207,7 @@ export function WalletBalance({ wallet: initialWallet }: { wallet: number }) {
               {edBalance.toFixed(2)} CR
             </div>
             <p className="text-xs text-cyan-200/70">
-              ≈ {formatNumber(edToXAF)} XAF • Earned from machines & ads
+              ≈ {formatMoney(edToXAF)} • Earned from machines & ads
             </p>
           </div>
         </div>
@@ -219,7 +221,7 @@ export function WalletBalance({ wallet: initialWallet }: { wallet: number }) {
               <span className="text-sm font-medium text-amber-200">Total Earned</span>
             </div>
             <div className="text-xl font-bold text-amber-300">
-              {formatNumber(totalEarned)} XAF
+              {formatMoney(totalEarned)}
             </div>
             <p className="text-xs text-amber-100/70 mt-1">Lifetime earnings</p>
           </div>
@@ -228,7 +230,7 @@ export function WalletBalance({ wallet: initialWallet }: { wallet: number }) {
           <div className="bg-gradient-to-br from-indigo-500/10 to-fuchsia-500/10 border border-indigo-500/20 rounded-2xl p-4">
             <div className="text-sm font-medium text-indigo-200 mb-2">Net Earnings</div>
             <div className="text-xl font-bold text-indigo-300">
-              {formatNumber(netEarningsXAF)} XAF
+              {formatMoney(netEarningsXAF)}
             </div>
             <p className="text-xs text-indigo-100/70 mt-1">After withdrawals</p>
           </div>
@@ -237,7 +239,7 @@ export function WalletBalance({ wallet: initialWallet }: { wallet: number }) {
           <div className="bg-gradient-to-br from-cyan-500/10 to-emerald-500/10 border border-cyan-500/20 rounded-2xl p-4">
             <div className="text-sm font-medium text-cyan-200 mb-2">Daily Potential</div>
             <div className="text-xl font-bold text-cyan-300">
-              {formatNumber(stats.total_daily_earnings)} XAF
+              {formatMoney(stats.total_daily_earnings)}
             </div>
             <p className="text-xs text-cyan-100/70 mt-1">
               From {stats.total_machines} machines
@@ -264,10 +266,10 @@ export function WalletBalance({ wallet: initialWallet }: { wallet: number }) {
             <span className="text-sm font-semibold text-cyan-200">How Your Wallet Works</span>
           </div>
           <div className="text-xs text-slate-400 space-y-2">
-            <p>• <strong>XAF (CFA Franc):</strong> Real money you can withdraw</p>
-            <p>• <strong>CR (CashRise):</strong> Tokens earned from machines (1 CR = 60 XAF)</p>
-            <p>• Convert CR to XAF anytime using the converter</p>
-            <p>• Minimum withdrawal: 3,000 XAF</p>
+            <p>• <strong>Money balance:</strong> Real money shown in your selected currency</p>
+            <p>• <strong>CR (CashRise):</strong> Tokens earned from machines (1 CR = {formatMoney(60)})</p>
+            <p>• Convert CR to money anytime using the converter</p>
+            <p>• Minimum withdrawal: {formatMoney(3000)}</p>
           </div>
         </div>
       </CardContent>

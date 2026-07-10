@@ -5,12 +5,18 @@ import "./globals.css"
 import { AuthProvider } from "@/hooks/use-auth"
 import { LanguageProvider } from "@/components/language-provider"
 import { ServiceWorkerRegister } from "@/components/service-worker-register"
+import { CurrencyProvider } from "@/contexts/CurrencyContext"
 
 export const metadata: Metadata = {
-  title: "CashRise - Invest, Play, Earn",
-  description: "Invest in AI gaming machines, watch ads, and grow your earnings with CashRise.",
+  title: "CashRise - World's First AI Investment Platform",
+  description: "Invest in AI-powered earning machines, watch ads, and grow your earnings with CashRise.",
   generator: "v0.dev",
   manifest: "/manifest.webmanifest",
+  icons: {
+    icon: "/cashrise-logo.svg",
+    shortcut: "/cashrise-logo.svg",
+    apple: "/cashrise-logo.svg"
+  },
   appleWebApp: {
     capable: true,
     title: "CashRise",
@@ -36,8 +42,10 @@ export default function RootLayout({
       <body className="font-sans antialiased cr-theme" suppressHydrationWarning>
         <LanguageProvider>
           <AuthProvider>
-            <ServiceWorkerRegister />
-            {children}
+            <CurrencyProvider>
+              <ServiceWorkerRegister />
+              {children}
+            </CurrencyProvider>
           </AuthProvider>
         </LanguageProvider>
       </body>

@@ -10,6 +10,11 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { User, Mail, Phone, MapPin, Calendar, Edit3, Loader2 } from "lucide-react"
 import { toast } from "sonner"
 import { supabase } from "@/lib/supabase"
+import { CountrySelect } from "@/components/CountrySelect"
+import { CountryPhoneInput } from "@/components/CountryPhoneInput"
+import { useCurrency } from "@/contexts/CurrencyContext"
+import { CountryInfo, normalizeCountry } from "@/lib/currency"
+import { formatPhoneForCountry } from "@/lib/phone"
 
 interface ProfileModalProps {
   open: boolean
@@ -20,6 +25,7 @@ interface ProfileFormData {
   full_name: string
   phone: string
   country: string
+  countryData: CountryInfo
 }
 
 // Extended user type that includes database fields
@@ -30,7 +36,7 @@ interface DatabaseUser {
   username?: string
   full_name?: string
   avatar_url?: string
-  country?: string
+  country?: string | CountryInfo
   phone?: string
   referral_code?: string
   referred_by?: string
@@ -46,12 +52,14 @@ interface DatabaseUser {
 
 export function ProfileModal({ open, onOpenChange }: ProfileModalProps) {
   const { user: authUser, refreshUser } = useAuth()
+  const { country: currentCountry, setCountry: setGlobalCountry } = useCurrency()
   const [editing, setEditing] = useState(false)
   const [saving, setSaving] = useState(false)
   const [profileData, setProfileData] = useState<ProfileFormData>({
     full_name: "",
     phone: "",
-    country: ""
+    country: currentCountry.name,
+    countryData: currentCountry
   })
 
   // Type assertion to handle the user type mismatch
@@ -60,13 +68,15 @@ export function ProfileModal({ open, onOpenChange }: ProfileModalProps) {
   // Initialize form data when user or modal opens
   useEffect(() => {
     if (user && open) {
+      const normalizedCountry = normalizeCountry(user.country || currentCountry)
       setProfileData({
         full_name: user.full_name || "",
         phone: user.phone || "",
-        country: user.country || ""
+        country: normalizedCountry.name,
+        countryData: normalizedCountry
       })
     }
-  }, [user, open])
+  }, [user, open, currentCountry])
 
   const handleSave = async () => {
     if (!user) return
@@ -83,10 +93,11 @@ export function ProfileModal({ open, onOpenChange }: ProfileModalProps) {
 
       // Check if phone already exists (if phone is provided)
       if (profileData.phone.trim()) {
+        const formattedPhone = formatPhoneForCountry(profileData.phone, profileData.countryData)
         const { data: existingUsers, error: checkError } = await supabase
           .from("users")
           .select("id")
-          .eq("phone", profileData.phone.trim())
+          .eq("phone", formattedPhone)
           .neq("id", user.id)
 
         if (checkError) {
@@ -107,20 +118,23 @@ export function ProfileModal({ open, onOpenChange }: ProfileModalProps) {
       const updateData: {
         full_name?: string
         phone?: string | null
-        country?: string | null
+        country?: CountryInfo | null
+        preferredLanguage?: string
+        lastCurrencyUpdate?: string
       } = {
         full_name: profileData.full_name.trim()
       }
 
       // Add optional fields only if they have values
       if (profileData.phone.trim()) {
-        updateData.phone = profileData.phone.trim()
+        updateData.phone = formatPhoneForCountry(profileData.phone, profileData.countryData)
       } else {
         updateData.phone = null
       }
 
       if (profileData.country.trim()) {
-        updateData.country = profileData.country.trim()
+        updateData.country = profileData.countryData
+        updateData.lastCurrencyUpdate = new Date().toISOString()
       } else {
         updateData.country = null
       }
@@ -137,6 +151,7 @@ export function ProfileModal({ open, onOpenChange }: ProfileModalProps) {
       }
 
       toast.success("Profile updated successfully!")
+      await setGlobalCountry(profileData.countryData)
       await refreshUser()
       setEditing(false)
       onOpenChange(false)
@@ -152,10 +167,12 @@ export function ProfileModal({ open, onOpenChange }: ProfileModalProps) {
   const handleCancel = () => {
     // Reset to original user data
     if (user) {
+      const normalizedCountry = normalizeCountry(user.country || currentCountry)
       setProfileData({
         full_name: user.full_name || "",
         phone: user.phone || "",
-        country: user.country || ""
+        country: normalizedCountry.name,
+        countryData: normalizedCountry
       })
     }
     setEditing(false)
@@ -198,6 +215,14 @@ export function ProfileModal({ open, onOpenChange }: ProfileModalProps) {
         day: 'numeric'
       })
     }
+  }
+
+  const handleCountryChange = (country: CountryInfo) => {
+    setProfileData((prev) => ({
+      ...prev,
+      country: country.name,
+      countryData: country
+    }))
   }
 
   return (
@@ -270,13 +295,12 @@ export function ProfileModal({ open, onOpenChange }: ProfileModalProps) {
                 <Phone className="h-4 w-4 text-cyan-400" />
                 <span>Phone</span>
               </Label>
-              <Input
+              <CountryPhoneInput
                 id="phone"
+                country={profileData.countryData}
                 value={profileData.phone}
-                onChange={(e) => setProfileData({ ...profileData, phone: e.target.value })}
+                onChange={(value) => setProfileData({ ...profileData, phone: value })}
                 disabled={!editing || saving}
-                className="bg-slate-800 border-slate-700 text-white placeholder:text-slate-500 focus:border-cyan-500 disabled:opacity-60 disabled:cursor-not-allowed"
-                placeholder="Enter phone number"
               />
             </div>
 
@@ -286,13 +310,11 @@ export function ProfileModal({ open, onOpenChange }: ProfileModalProps) {
                 <MapPin className="h-4 w-4 text-cyan-400" />
                 <span>Country</span>
               </Label>
-              <Input
-                id="country"
-                value={profileData.country}
-                onChange={(e) => setProfileData({ ...profileData, country: e.target.value })}
+              <CountrySelect
+                value={profileData.countryData}
+                onChange={handleCountryChange}
                 disabled={!editing || saving}
-                className="bg-slate-800 border-slate-700 text-white placeholder:text-slate-500 focus:border-cyan-500 disabled:opacity-60 disabled:cursor-not-allowed"
-                placeholder="Enter your country"
+                className="bg-slate-800 border-slate-700"
               />
             </div>
 

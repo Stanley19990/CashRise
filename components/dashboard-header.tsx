@@ -18,6 +18,7 @@ import { LanguageSwitcher } from "@/components/language-switcher"
 import { useLanguage } from "@/components/language-provider"
 import { NotificationBell } from "@/components/notification-bell"
 import { MobileBottomNav } from "@/components/mobile-bottom-nav"
+import { InstallAppButton } from "@/components/install-app-button"
 
 export function DashboardHeader() {
   const { t } = useLanguage()
@@ -337,6 +338,8 @@ export function DashboardHeader() {
 
               <LanguageSwitcher compact />
 
+              <InstallAppButton className="cr-outline-button h-9 px-3 text-xs" />
+
               <NotificationBell />
 
               <div className="flex items-center space-x-2">
@@ -398,6 +401,8 @@ export function DashboardHeader() {
                 <div className="px-2">
                   <LanguageSwitcher />
                 </div>
+
+                <InstallAppButton fullWidth className="justify-start cr-outline-button" />
 
                 {/* Mobile Verification Button */}
                 <Button

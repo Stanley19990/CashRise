@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useAuth } from "@/hooks/use-auth"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -9,12 +9,15 @@ import { Label } from "@/components/ui/label"
 import { ArrowRightLeft, Coins, DollarSign, Zap, TrendingUp } from "lucide-react"
 import { toast } from "sonner"
 import { supabase } from "@/lib/supabase"
-import { formatNumber, toNumber } from "@/lib/safe-data"
+import { toNumber } from "@/lib/safe-data"
+import { useCurrency } from "@/contexts/CurrencyContext"
 
 export function EarningsConverter() {
   const { user, refreshUser } = useAuth()
+  const { formatMoney } = useCurrency()
   const [edAmount, setEdAmount] = useState("")
   const [converting, setConverting] = useState(false)
+  const [balances, setBalances] = useState({ ed_balance: 0, wallet_balance: 0 })
 
   // Conversion rates based on our system:
   // 1 CR = $0.10 USD
@@ -27,11 +30,32 @@ export function EarningsConverter() {
   const usdAmount = Number.parseFloat(edAmount) * edToUsdRate || 0
   const xafAmount = Number.parseFloat(edAmount) * edToXafRate || 0
 
+  const fetchBalances = async () => {
+    if (!user) return
+
+    const { data, error } = await supabase
+      .from("users")
+      .select("ed_balance, wallet_balance")
+      .eq("id", user.id)
+      .maybeSingle()
+
+    if (!error && data) {
+      setBalances({
+        ed_balance: toNumber(data.ed_balance),
+        wallet_balance: toNumber(data.wallet_balance)
+      })
+    }
+  }
+
+  useEffect(() => {
+    fetchBalances()
+  }, [user])
+
   const handleConvert = async () => {
     if (!user || !edAmount) return
 
     const edToConvert = Number.parseFloat(edAmount)
-    const userEdBalance = user.ed_balance ?? 0
+    const userEdBalance = balances.ed_balance
 
     // Validation
     if (edToConvert <= 0) {
@@ -77,7 +101,7 @@ export function EarningsConverter() {
 
       // Calculate new balances
       const newEdBalance = currentEdBalance - edToConvert
-      const newWalletBalance = currentWalletBalance + usdAmount
+      const newWalletBalance = currentWalletBalance + xafAmount
 
       console.log('📊 Balance update:', {
         currentEdBalance,
@@ -106,7 +130,7 @@ export function EarningsConverter() {
         .insert({
           user_id: user.id,
           type: 'conversion',
-          description: `Converted ${edToConvert} CR to ${formatNumber(xafAmount)} XAF ($${usdAmount.toFixed(2)} USD)`,
+          description: `Converted ${edToConvert} CR to ${formatMoney(xafAmount)} ($${usdAmount.toFixed(2)} USD)`,
           amount: -edToConvert, // Negative for CR deduction
           currency: 'ED',
           status: 'completed',
@@ -125,15 +149,15 @@ export function EarningsConverter() {
         console.log('⚠️ Transaction recording failed, but conversion was successful')
       }
 
-      // Record USD transaction
+      // Record wallet credit transaction
       const { error: usdTransactionError } = await supabase
         .from('transactions')
         .insert({
           user_id: user.id,
           type: 'conversion_credit',
-          description: `Received ${formatNumber(xafAmount)} XAF ($${usdAmount.toFixed(2)} USD) from CR conversion`,
-          amount: usdAmount,
-          currency: 'USD',
+          description: `Received ${formatMoney(xafAmount)} from CR conversion`,
+          amount: xafAmount,
+          currency: 'XAF',
           status: 'completed',
           external_id: `conv_usd_${user.id}_${Date.now()}`,
           metadata: {
@@ -154,7 +178,10 @@ export function EarningsConverter() {
       // Refresh user data
       await refreshUser()
 
-      toast.success(`✅ Successfully converted ${edToConvert} CR to ${formatNumber(xafAmount)} XAF!`)
+      setBalances({ ed_balance: newEdBalance, wallet_balance: newWalletBalance })
+      await fetchBalances()
+
+      toast.success(`Successfully converted ${edToConvert} CR to ${formatMoney(xafAmount)}!`)
       setEdAmount("")
 
     } catch (error) {
@@ -167,7 +194,7 @@ export function EarningsConverter() {
 
   // Quick conversion buttons
   const quickConvert = (percentage: number) => {
-    const userEdBalance = user?.ed_balance || 0
+    const userEdBalance = balances.ed_balance
     if (userEdBalance <= 0) {
       toast.error("No CR balance available")
       return
@@ -189,7 +216,7 @@ export function EarningsConverter() {
       <CardHeader>
         <CardTitle className="flex items-center space-x-2">
           <ArrowRightLeft className="h-5 w-5 text-amber-300" />
-          <span>Convert CR to XAF</span>
+          <span>Convert CR to Money</span>
         </CardTitle>
       </CardHeader>
       <CardContent>
@@ -202,7 +229,7 @@ export function EarningsConverter() {
                 <span className="text-sm text-slate-400">CR Balance</span>
               </div>
               <div className="text-lg font-bold text-cyan-300">
-                {toNumber(user.ed_balance).toFixed(2)} CR
+                {balances.ed_balance.toFixed(2)} CR
               </div>
             </div>
             <div className="bg-slate-900/60 rounded-2xl p-3 text-center border border-cyan-400/10">
@@ -211,10 +238,10 @@ export function EarningsConverter() {
                 <span className="text-sm text-slate-400">Available Balance</span>
               </div>
               <div className="text-lg font-bold text-emerald-300">
-                {formatNumber(toNumber(user.wallet_balance) * 600)} XAF
+                {formatMoney(balances.wallet_balance)}
               </div>
               <div className="text-xs text-slate-400">
-                ${toNumber(user.wallet_balance).toFixed(2)} USD
+                Available money balance
               </div>
             </div>
           </div>
@@ -223,8 +250,8 @@ export function EarningsConverter() {
           <div className="bg-slate-900/60 rounded-2xl p-4 border border-cyan-400/10">
             <div className="text-center mb-2">
               <div className="text-sm text-slate-400 mb-1">Current Exchange Rate</div>
-              <div className="text-lg font-semibold text-amber-300">1 CR = 60 XAF</div>
-              <div className="text-sm text-slate-300">($0.10 USD = 60 XAF)</div>
+              <div className="text-lg font-semibold text-amber-300">1 CR = {formatMoney(60)}</div>
+              <div className="text-sm text-slate-300">($0.10 USD base rate)</div>
             </div>
             <div className="text-xs text-slate-400 text-center">
               Fixed rate • Minimum conversion: 10 CR
@@ -276,12 +303,12 @@ export function EarningsConverter() {
                 onChange={(e) => setEdAmount(e.target.value)}
                 placeholder="0"
                 min="10"
-                max={user.ed_balance ?? 0}
+                max={balances.ed_balance}
                 step="1"
                 className="bg-slate-900/70 border-slate-700 focus:border-cyan-500 text-cyan-200 text-center text-lg font-semibold"
               />
               <div className="text-xs text-slate-400 text-center">
-                Available: {toNumber(user.ed_balance).toFixed(2)} CR
+                Available: {balances.ed_balance.toFixed(2)} CR
               </div>
             </div>
 
@@ -290,7 +317,7 @@ export function EarningsConverter() {
               <ArrowRightLeft className="h-6 w-6 text-amber-300" />
             </div>
 
-            {/* XAF Amount Display */}
+            {/* Money Amount Display */}
             <div className="space-y-2">
               <Label className="flex items-center justify-center space-x-2">
                 <TrendingUp className="h-4 w-4 text-emerald-300" />
@@ -298,7 +325,7 @@ export function EarningsConverter() {
               </Label>
               <div className="bg-slate-900/70 border border-slate-700 rounded-2xl p-4 text-center">
                 <div className="text-2xl font-bold text-emerald-300 mb-1">
-                  {formatNumber(xafAmount)} XAF
+                  {formatMoney(xafAmount)}
                 </div>
                 <div className="text-sm text-slate-400">
                   ${usdAmount.toFixed(2)} USD
@@ -314,7 +341,7 @@ export function EarningsConverter() {
               converting ||
               !edAmount ||
               Number.parseFloat(edAmount) < 10 ||
-              Number.parseFloat(edAmount) > (user.ed_balance ?? 0)
+              Number.parseFloat(edAmount) > balances.ed_balance
             }
             className="w-full cr-button text-slate-950 font-semibold py-3"
           >
@@ -326,16 +353,16 @@ export function EarningsConverter() {
             ) : (
               <div className="flex items-center space-x-2">
                 <ArrowRightLeft className="h-4 w-4" />
-                <span>Convert to XAF</span>
+                <span>Convert to Money</span>
               </div>
             )}
           </Button>
 
           {/* Info */}
           <div className="text-xs text-slate-400 text-center space-y-1">
-            <div>✅ Converted XAF will be added to your available balance</div>
-            <div>💳 Use your XAF balance for withdrawals or purchases</div>
-            <div>💰 1 CR = 60 XAF • $1 USD = 600 XAF</div>
+            <div>Converted money will be added to your available balance</div>
+            <div>Use your balance for withdrawals or purchases</div>
+            <div>1 CR = {formatMoney(60)} • $1 USD = 600 XAF</div>
           </div>
         </div>
       </CardContent>

@@ -29,6 +29,9 @@ export const extractMachineId = (source: any) => {
     source?.metadata?.machineId ||
     source?.metadata?.machine_id ||
     source?.metadata?.machine_type_id ||
+    source?.metadata?.metadata?.machineId ||
+    source?.metadata?.metadata?.machine_id ||
+    source?.metadata?.metadata?.machine_type_id ||
     (typeof source?.external_id === "string" ? source.external_id.split("_")[1] : null) ||
     (typeof source?.externalId === "string" ? source.externalId.split("_")[1] : null)
   )
@@ -43,7 +46,7 @@ export async function ensureFapshiTransaction(supabase: SupabaseClient, payload:
 
   const { data: existing } = await supabase
     .from("transactions")
-    .select("id, user_id, external_id, metadata, created_at")
+    .select("id, user_id, amount, type, external_id, metadata, created_at")
     .eq("fapshi_trans_id", transId)
     .order("created_at", { ascending: false })
     .limit(1)
@@ -80,7 +83,7 @@ export async function ensureFapshiTransaction(supabase: SupabaseClient, payload:
         recovered_from_fapshi: true
       }
     })
-    .select("id, user_id, external_id, metadata, created_at")
+    .select("id, user_id, amount, type, external_id, metadata, created_at")
     .single()
 
   if (error) {

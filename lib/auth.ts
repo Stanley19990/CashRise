@@ -3,8 +3,10 @@ import { supabase, type User, type MachineType, type UserMachine } from "./supab
 // Export User type for other components to use
 export type { User, MachineType, UserMachine }
 
-// Admin emails with access to admin panel
-const ADMIN_EMAILS = ["chiastanley3@gmail.com", "chiastanleymbeng3@gmail.com"]
+const ADMIN_EMAILS = (process.env.NEXT_PUBLIC_ADMIN_EMAILS || "")
+  .split(",")
+  .map((email) => email.trim().toLowerCase())
+  .filter(Boolean)
 export type AdReward = {
   amount: number
 }
@@ -109,7 +111,7 @@ export const authService ={
   },
 
   isAdmin(email: string): boolean {
-    return ADMIN_EMAILS.includes(email.toLowerCase())
+    return ADMIN_EMAILS.includes(email.trim().toLowerCase())
   },
 
   async getMachines(): Promise<MachineType[]> {
@@ -326,7 +328,9 @@ async getUserMachines(userId: string): Promise<UserMachine[]> {
       await supabase.from("referrals").insert({
         referrer_id: referrerId,
         referred_id: referredId,
-        bonus_amount: 5.0,
+        referral_date: new Date().toISOString(),
+        bonus: 5.0,
+        status: "active",
       })
 
       const { data: referrer } = await supabase.from("users").select("wallet_balance").eq("id", referrerId).single()
@@ -343,8 +347,10 @@ async getUserMachines(userId: string): Promise<UserMachine[]> {
           user_id: referrerId,
           amount: 5.0,
           currency: "USD",
+          type: "referral",
           earning_type: "referral",
           description: "Referral bonus for new user signup",
+          earned_at: new Date().toISOString(),
         })
       }
     } catch (error) {

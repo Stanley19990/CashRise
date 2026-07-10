@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
+import { useAuth } from "@/hooks/use-auth"
+import { authService } from "@/lib/auth"
 import { AdminHeader } from "@/components/admin-header"
 import { AdminStats } from "@/components/admin-stats"
 import { UserManagement } from "@/components/user-management"
@@ -12,19 +14,24 @@ import { AdminWallet } from "@/components/admin-wallet"
 
 export default function AdminPage() {
   const [isAdmin, setIsAdmin] = useState(false)
-  const [loading, setLoading] = useState(true)
+  const { user, loading } = useAuth()
   const router = useRouter()
 
   useEffect(() => {
-    // Mock admin check - in real app, this would verify admin credentials
-    const adminCheck = localStorage.getItem("easy_dollars_admin")
-    if (adminCheck === "true") {
+    if (loading) return
+
+    if (user?.email && authService.isAdmin(user.email)) {
       setIsAdmin(true)
-    } else {
-      router.push("/admin/login")
+      return
     }
-    setLoading(false)
-  }, [router])
+
+    setIsAdmin(false)
+    if (!user) {
+      router.push("/admin/login")
+    } else {
+      router.push("/dashboard")
+    }
+  }, [loading, router, user])
 
   if (loading) {
     return (

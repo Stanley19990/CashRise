@@ -10,6 +10,7 @@ import { supabase } from "@/lib/supabase"
 import { useAuth } from "@/hooks/use-auth"
 import { useRouter } from "next/navigation"
 import { FloatingParticles } from "@/components/floating-particles"
+import { useCurrency } from "@/contexts/CurrencyContext"
 
 const SOCIAL_MEDIA_LINKS = [
   {
@@ -83,6 +84,7 @@ const recordSocialMediaBonus = async (userId: string, amount: number) => {
 
 export default function SocialLinksPage() {
   const { user, refreshUser } = useAuth()
+  const { formatMoney } = useCurrency()
   const router = useRouter()
   // ✅ FIX: Keep completed state only in local React state (not in database)
   const [completed, setCompleted] = useState<Record<string, boolean>>({})
@@ -172,7 +174,7 @@ export default function SocialLinksPage() {
       // ✅ RECORD THE TRANSACTION
       await recordSocialMediaBonus(user.id, bonusAmount)
       
-      toast.success(`🎉 Congratulations! You earned ${bonusAmount} XAF bonus!`)
+      toast.success(`Congratulations! You earned ${formatMoney(bonusAmount)} bonus!`)
 
       // Reload user data
       await loadUserData()
@@ -346,14 +348,14 @@ export default function SocialLinksPage() {
               ) : (
                 <>
                   <CheckCircle className="h-5 w-5 mr-2" />
-                  Complete Task & Claim 500 XAF
+                  Complete Task & Claim {formatMoney(500)}
                 </>
               )}
             </Button>
             <p className="text-slate-400 mt-3 text-sm">
               {userData?.social_media_completed 
                 ? "You've already completed this task and received your bonus!"
-                : "Follow all required channels, then click to claim your 500 XAF bonus!"
+                : `Follow all required channels, then click to claim your ${formatMoney(500)} bonus!`
               }
             </p>
           </div>

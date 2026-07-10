@@ -9,9 +9,11 @@ import { Input } from "@/components/ui/input"
 import { Share2, Copy, Check, MessageCircle, Mail, Loader2 } from "lucide-react"
 import { toast } from "sonner"
 import { supabase } from "@/lib/supabase"
+import { useCurrency } from "@/contexts/CurrencyContext"
 
 export function ReferralLink() {
   const { user } = useAuth()
+  const { formatMoney } = useCurrency()
   const [copied, setCopied] = useState(false)
   const [referralCode, setReferralCode] = useState<string>("")
   const [loading, setLoading] = useState(true)
@@ -148,7 +150,7 @@ export function ReferralLink() {
 
           <div className="bg-gradient-to-r from-purple-500/10 to-pink-500/10 border border-purple-500/20 rounded-lg p-4">
             <div className="text-center">
-              <div className="text-lg font-bold text-purple-400 mb-1">1000 XAF Bonus</div>
+              <div className="text-lg font-bold text-purple-400 mb-1">{formatMoney(1000)} Bonus</div>
               <div className="text-sm text-slate-400">For each successful referral</div>
             </div>
           </div>

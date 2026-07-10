@@ -1,17 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
 import { fulfillMachinePurchase } from '@/lib/payment-fulfillment'
-import { requireAuthenticatedUser } from '@/lib/server-auth'
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
+import { createServiceClient, requireAuthenticatedUser } from '@/lib/server-auth'
 
 export async function POST(request: NextRequest) {
   try {
     const auth = await requireAuthenticatedUser(request)
     if (auth.response) return auth.response
+    const supabase = createServiceClient()
 
     const { userId: requestedUserId } = await request.json()
     const userId = auth.user.id
@@ -22,12 +17,12 @@ export async function POST(request: NextRequest) {
 
     console.log('🔧 Running repair for user:', userId)
 
-    // Find all successful transactions that don't have corresponding machines
+    // Find all paid transactions that don't have corresponding machines.
     const { data: transactions, error: txError } = await supabase
       .from('transactions')
       .select('*')
       .eq('user_id', userId)
-      .eq('status', 'successful')
+      .in('status', ['successful', 'completed'])
       .eq('type', 'machine_purchase')
       .order('created_at', { ascending: true })
 

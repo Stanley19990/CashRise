@@ -9,7 +9,8 @@ import { Badge } from "@/components/ui/badge"
 import { Zap, Cpu, BarChart3, DollarSign, Image as ImageIcon, Timer, CheckCircle, Clock, TrendingUp, Loader2, RefreshCw } from "lucide-react"
 import { toast } from "sonner"
 import { supabase } from "@/lib/supabase"
-import { firstRelation, formatNumber, toNumber } from "@/lib/safe-data"
+import { firstRelation, toNumber } from "@/lib/safe-data"
+import { useCurrency } from "@/contexts/CurrencyContext"
 
 interface UserMachine {
   id: string
@@ -35,6 +36,7 @@ interface MyMachinesProps {
 
 export function MyMachines({ onRefresh }: MyMachinesProps) {
   const { user, refreshUser } = useAuth()
+  const { formatMoney } = useCurrency()
   const [userMachines, setUserMachines] = useState<UserMachine[]>([])
   const [loading, setLoading] = useState(true)
   const [activatingMachine, setActivatingMachine] = useState<string | null>(null)
@@ -454,21 +456,21 @@ export function MyMachines({ onRefresh }: MyMachinesProps) {
                       <div className="bg-slate-900/60 rounded-2xl p-4 text-center border border-cyan-400/10">
                         <div className="text-xs text-slate-400 mb-1">Available Now</div>
                         <div className="text-lg font-bold text-emerald-300">
-                          {canClaim ? formatNumber(dailyEarnings) : '0'} XAF
+                          {canClaim ? formatMoney(dailyEarnings) : formatMoney(0)}
                         </div>
                       </div>
 
                       <div className="bg-slate-900/60 rounded-2xl p-4 text-center border border-cyan-400/10">
                         <div className="text-xs text-slate-400 mb-1">Daily Rate</div>
                         <div className="text-lg font-bold text-amber-300">
-                          {formatNumber(dailyEarnings)} XAF
+                          {formatMoney(dailyEarnings)}
                         </div>
                       </div>
 
                       <div className="bg-slate-900/60 rounded-2xl p-4 text-center border border-cyan-400/10">
                         <div className="text-xs text-slate-400 mb-1">Total Earned</div>
                         <div className="text-lg font-bold text-amber-200">
-                          {formatNumber(totalEarned)} XAF
+                          {formatMoney(totalEarned)}
                         </div>
                       </div>
 
@@ -503,7 +505,7 @@ export function MyMachines({ onRefresh }: MyMachinesProps) {
                           ) : (
                             <>
                               <CheckCircle className="h-5 w-5 mr-2" />
-                              Claim {formatNumber(dailyEarnings)} XAF
+                              Claim {formatMoney(dailyEarnings)}
                             </>
                           )}
                         </Button>

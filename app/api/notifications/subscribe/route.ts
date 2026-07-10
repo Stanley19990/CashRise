@@ -1,16 +1,11 @@
 import { NextRequest, NextResponse } from "next/server"
-import { createClient } from "@supabase/supabase-js"
-import { requireAuthenticatedUser } from "@/lib/server-auth"
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
+import { createServiceClient, requireAuthenticatedUser } from "@/lib/server-auth"
 
 export async function POST(request: NextRequest) {
   try {
     const auth = await requireAuthenticatedUser(request)
     if (auth.response) return auth.response
+    const supabase = createServiceClient()
 
     const { userId: requestedUserId, subscription, language } = await request.json()
     const userId = auth.user.id
