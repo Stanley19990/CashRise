@@ -5,6 +5,8 @@ import { CreditCard, Loader2, Smartphone, WalletCards } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import { FuturapayWidget } from "@/components/FuturapayWidget"
 import { useCurrency } from "@/contexts/CurrencyContext"
 import { supabase } from "@/lib/supabase"
@@ -33,6 +35,7 @@ export function PaymentSelector({
   const [widgetOpen, setWidgetOpen] = useState(false)
   const [widgetUrl, setWidgetUrl] = useState<string | null>(null)
   const [transactionId, setTransactionId] = useState<string | null>(null)
+  const [checkoutPhone, setCheckoutPhone] = useState("")
 
   const localAmount = convertXAF(amountXAF)
   const amountLabel = formatMoney(amountXAF)
@@ -61,6 +64,11 @@ export function PaymentSelector({
       return
     }
 
+    if (!checkoutPhone.trim()) {
+      toast.error("Enter your phone number before opening checkout")
+      return
+    }
+
     setLoadingMethod("futurapay")
     try {
       const { data: sessionData } = await supabase.auth.getSession()
@@ -77,6 +85,7 @@ export function PaymentSelector({
           description,
           purpose,
           type: transactionType,
+          phone: checkoutPhone.trim(),
           metadata
         })
       })
@@ -99,6 +108,20 @@ export function PaymentSelector({
   return (
     <>
       <div className="space-y-3">
+        <div className="space-y-2">
+          <Label className="text-slate-200">Phone Number</Label>
+          <Input
+            value={checkoutPhone}
+            onChange={(event) => setCheckoutPhone(event.target.value.replace(/[^\d+]/g, ""))}
+            placeholder={`+${country.dialCode || ""} phone number`}
+            type="tel"
+            className="bg-slate-900/70 border-slate-700 text-white"
+          />
+          <p className="text-xs text-slate-400">
+            Required for secure checkout verification.
+          </p>
+        </div>
+
         {methods.map((method) => {
           const Icon = method.icon
           const loading = loadingMethod === method.id

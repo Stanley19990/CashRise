@@ -44,6 +44,22 @@ const encryptPayload = (payload: Record<string, unknown>, merchantKey: string, a
   }
 }
 
+const makeCustomerTransactionId = () => {
+  return `${Date.now()}${crypto.randomInt(100, 999)}`
+}
+
+const normalizeCheckoutPhone = (phone: string, country: ReturnType<typeof normalizeCountry>) => {
+  const trimmed = phone.trim()
+  if (!trimmed) return ""
+  if (trimmed.startsWith("+")) return trimmed
+
+  const digits = trimmed.replace(/\D/g, "")
+  if (!digits) return ""
+  if (country.dialCode && digits.startsWith(country.dialCode)) return `+${digits}`
+  if (country.dialCode) return `+${country.dialCode}${digits}`
+  return `+${digits}`
+}
+
 export async function POST(request: NextRequest) {
   try {
     const auth = await requireAuthenticatedUser(request)
@@ -60,10 +76,33 @@ export async function POST(request: NextRequest) {
 
     const config = getFuturapayConfig()
     const supabase = createServiceClient()
+    const { data: profile } = await supabase
+      .from("users")
+      .select("full_name, username, phone")
+      .eq("id", auth.user.id)
+      .maybeSingle()
+
+    const displayName =
+      body.name ||
+      profile?.full_name ||
+      profile?.username ||
+      auth.user.user_metadata?.full_name ||
+      auth.user.email ||
+      "CashRise User"
+    const rawPhone = body.phone || profile?.phone || auth.user.user_metadata?.phone || ""
+    const checkoutPhone = normalizeCheckoutPhone(String(rawPhone), country)
+
+    if (!checkoutPhone) {
+      return NextResponse.json(
+        { success: false, error: "Please enter a phone number before opening checkout" },
+        { status: 400 }
+      )
+    }
+
     const amountXAF = convertToXAF(amount, currency)
     const transactionType = body.type || "deposit"
     const transactionAmount = transactionType === "machine_purchase" ? -Math.abs(amountXAF) : amountXAF
-    const customerTransactionId = `futurapay_${auth.user.id}_${Date.now()}`
+    const customerTransactionId = makeCustomerTransactionId()
 
     const { data: transaction, error: txError } = await supabase
       .from("transactions")
@@ -92,7 +131,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: txError.message }, { status: 500 })
     }
 
-    const displayName = body.name || auth.user.user_metadata?.full_name || auth.user.email || "CashRise User"
     const [firstName, ...lastNameParts] = String(displayName).trim().split(/\s+/)
     const lastName = lastNameParts.join(" ") || firstName || "User"
 
@@ -103,15 +141,8 @@ export async function POST(request: NextRequest) {
       country_code: country.code,
       customer_first_name: firstName || "CashRise",
       customer_last_name: lastName,
-      customer_phone: body.phone || auth.user.user_metadata?.phone || "",
-      customer_email: auth.user.email || "",
-      callback_url: body.callbackUrl || `${process.env.NEXT_PUBLIC_APP_URL || ""}/wallet`,
-      webhook_url: `${process.env.NEXT_PUBLIC_APP_URL || "https://cash-rise.vercel.app"}/api/webhooks/futurapay`,
-      metadata: {
-        app_transaction_id: transaction.id,
-        purpose: body.purpose || "wallet_deposit",
-        ...body.metadata
-      }
+      customer_phone: checkoutPhone,
+      customer_email: auth.user.email || ""
     }
 
     const encrypted = encryptPayload(payload, config.merchantKey, config.apiKey, config.siteId)
