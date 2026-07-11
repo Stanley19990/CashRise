@@ -3,6 +3,18 @@ import crypto from "crypto"
 import { createServiceClient, requireAuthenticatedUser } from "@/lib/server-auth"
 import { convertToXAF, normalizeCountry } from "@/lib/currency"
 
+export const runtime = "nodejs"
+
+type FuturapayGateway = {
+  setEnv: (environment: "live" | "sandbox") => void
+  setType: (paymentType: "deposit" | "withdraw") => void
+  initiatePayment: (payload: Record<string, string | number>) => string
+}
+
+type FuturapayConstructor = new (merchantKey: string, apiKey: string, siteId: string) => FuturapayGateway
+
+const Futurapay = require("futurapay/futurapay") as FuturapayConstructor
+
 const getFuturapayConfig = () => {
   const merchantKey = process.env.FUTURAPAY_MERCHANT_KEY
   const siteId = process.env.FUTURAPAY_SITE_ID
@@ -18,29 +30,7 @@ const getFuturapayConfig = () => {
     merchantKey,
     siteId,
     apiKey,
-    env,
-    widgetBaseUrl: isSandbox
-      ? "https://stage-payment-widget.futurapay.com/widget/deposit"
-      : "https://payment-widget.futurapay.com/widget/deposit"
-  }
-}
-
-const encryptPayload = (payload: Record<string, unknown>, merchantKey: string, apiKey: string, siteId: string) => {
-  const key = crypto.createHash("md5").update(`${merchantKey}${apiKey}${siteId}`).digest("hex")
-  const iv = crypto.randomBytes(16)
-  const cipher = crypto.createCipheriv("aes-256-cbc", Buffer.from(key, "utf8"), iv)
-  const encrypted = Buffer.concat([cipher.update(JSON.stringify({
-    ...payload,
-    merchant_key: merchantKey,
-    api_key: apiKey,
-    site_id: siteId
-  }), "utf8"), cipher.final()])
-  const encryptedBase64 = encrypted.toString("base64")
-
-  return {
-    data: Buffer.from(encryptedBase64, "utf8").toString("base64"),
-    iv: iv.toString("base64"),
-    key: Buffer.from(apiKey, "utf8").toString("base64")
+    sdkEnv: (isSandbox ? "sandbox" : "live") as "sandbox" | "live"
   }
 }
 
@@ -62,13 +52,33 @@ const makeCustomerTransactionId = async (supabase: ReturnType<typeof createServi
 const normalizeCheckoutPhone = (phone: string, country: ReturnType<typeof normalizeCountry>) => {
   const trimmed = phone.trim()
   if (!trimmed) return ""
-  if (trimmed.startsWith("+")) return trimmed
 
   const digits = trimmed.replace(/\D/g, "")
   if (!digits) return ""
-  if (country.dialCode && digits.startsWith(country.dialCode)) return `+${digits}`
-  if (country.dialCode) return `+${country.dialCode}${digits}`
-  return `+${digits}`
+  if (country.dialCode && digits.startsWith(country.dialCode)) return digits
+  if (country.dialCode) return `${country.dialCode}${digits}`
+  return digits
+}
+
+const buildFuturapayWidgetUrl = (
+  config: ReturnType<typeof getFuturapayConfig>,
+  payload: Record<string, string | number>
+) => {
+  const paymentGateway = new Futurapay(config.merchantKey, config.apiKey, config.siteId)
+  paymentGateway.setEnv(config.sdkEnv)
+  paymentGateway.setType("deposit")
+
+  const securedUrl = paymentGateway.initiatePayment(payload)
+  const expectedHost =
+    config.sdkEnv === "live"
+      ? "https://payment-widget.futurapay.com/widget/deposit/"
+      : "https://stage-payment-widget.futurapay.com/widget/deposit/"
+
+  if (!securedUrl?.startsWith(expectedHost)) {
+    throw new Error("International checkout returned an invalid payment URL")
+  }
+
+  return securedUrl
 }
 
 export async function POST(request: NextRequest) {
@@ -156,18 +166,12 @@ export async function POST(request: NextRequest) {
       customer_email: auth.user.email || ""
     }
 
-    const encrypted = encryptPayload(payload, config.merchantKey, config.apiKey, config.siteId)
-    const params = new URLSearchParams({
-      data: encrypted.data,
-      iv: encrypted.iv
-    })
-    params.set("key", encrypted.key)
+    const widgetUrl = buildFuturapayWidgetUrl(config, payload)
 
     return NextResponse.json({
       success: true,
       transactionId: customerTransactionId,
-      widgetUrl: `${config.widgetBaseUrl}?${params.toString()}`,
-      encryptedQuery: params.toString()
+      widgetUrl
     })
   } catch (error: any) {
     console.error("International checkout initiate error:", error)
