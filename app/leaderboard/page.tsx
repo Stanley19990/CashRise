@@ -50,7 +50,7 @@ export default function LeaderboardPage() {
                     #{index + 1} {leader.username || leader.full_name || "CashRise user"}
                   </p>
                   <p className="text-xs text-slate-500">
-                    {leader.seeded ? "All-time top earner" : `${toNumber(leader.machines_owned)} machines`}
+                    {toNumber(leader.machines_owned)} machines
                   </p>
                 </div>
                 <p className="text-sm font-bold text-emerald-300">{formatMoney(toNumber(leader.total_earned))}</p>

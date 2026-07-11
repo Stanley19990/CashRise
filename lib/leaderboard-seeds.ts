@@ -117,6 +117,13 @@ const getElapsedGrowthDays = (now = new Date()) => {
   return Math.max(0, Math.floor(elapsedMs / 86_400_000))
 }
 
+const getSeededMachineCount = (rankIndex: number) => {
+  const rank = rankIndex + 1
+  if (rank <= 20) return 8
+  if (rank <= 30) return 7
+  return 6
+}
+
 export const getSeededLeaderboardEntries = (now = new Date()): SeededLeaderboardEntry[] => {
   const growthMultiplier = Math.pow(1 + DAILY_GROWTH_RATE, getElapsedGrowthDays(now))
 
@@ -124,7 +131,7 @@ export const getSeededLeaderboardEntries = (now = new Date()): SeededLeaderboard
     id: `seeded-${username.toLowerCase()}`,
     username,
     total_earned: Math.round(amount * growthMultiplier),
-    machines_owned: Math.max(1, 12 - Math.floor(index / 10)),
+    machines_owned: getSeededMachineCount(index),
     seeded: true
   }))
 }
