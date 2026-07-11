@@ -115,7 +115,11 @@ export async function POST(request: NextRequest) {
 
     if (!checkoutPhone) {
       return NextResponse.json(
-        { success: false, error: "Please enter a phone number before opening checkout" },
+        {
+          success: false,
+          code: "phone_required",
+          error: "Enter a phone number to continue with international checkout"
+        },
         { status: 400 }
       )
     }
@@ -175,8 +179,14 @@ export async function POST(request: NextRequest) {
     })
   } catch (error: any) {
     console.error("International checkout initiate error:", error)
+    const rawMessage = String(error.message || "")
+    const safeMessage =
+      rawMessage.toLowerCase().includes("api") || rawMessage.toLowerCase().includes("key")
+        ? "International checkout is temporarily unavailable. Please try again shortly."
+        : rawMessage || "Failed to start secure checkout"
+
     return NextResponse.json(
-      { success: false, error: error.message || "Failed to start secure checkout" },
+      { success: false, error: safeMessage },
       { status: 500 }
     )
   }

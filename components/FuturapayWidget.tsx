@@ -72,7 +72,7 @@ export function FuturapayWidget({
           setError("Payment was not completed. Please try again.")
         }
       } catch (error: any) {
-        if (!stopped) setError(error.message || "Unable to verify payment")
+        if (!stopped) setError("Waiting for payment confirmation.")
       }
     }
 

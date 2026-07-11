@@ -27,7 +27,7 @@ export default function LeaderboardPage() {
   }, [])
 
   return (
-    <AppScreen title="Leaderboard" description="Top earners ranked by existing lifetime earnings.">
+    <AppScreen title="All-Time Winners" description="Top real CashRise earners ranked by lifetime earnings.">
       <section className="cr-glass rounded-2xl p-4">
         {leaders.length === 0 ? (
           <p className="py-6 text-center text-sm text-slate-400">No leaderboard data yet.</p>

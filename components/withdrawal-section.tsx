@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Banknote, CreditCard, Smartphone } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
@@ -27,7 +27,26 @@ export function WithdrawalSection() {
   const { currency, convertXAF, formatMoney } = useCurrency()
   const [form, setForm] = useState({ amount: "", method: "", accountDetails: "" })
   const [processing, setProcessing] = useState(false)
+  const [canWithdraw, setCanWithdraw] = useState(false)
+  const [withdrawalReason, setWithdrawalReason] = useState("")
   const minWithdrawalXAF = 3000
+
+  useEffect(() => {
+    const loadEligibility = async () => {
+      if (!user) return
+      const { data: sessionData } = await supabase.auth.getSession()
+      const response = await fetch("/api/withdrawals/request", {
+        headers: {
+          ...(sessionData.session?.access_token ? { Authorization: `Bearer ${sessionData.session.access_token}` } : {})
+        }
+      })
+      const result = await response.json().catch(() => ({}))
+      setCanWithdraw(Boolean(response.ok && result.success && result.eligible))
+      setWithdrawalReason(result.reason || result.error || "")
+    }
+
+    loadEligibility()
+  }, [user])
 
   if (!user) return null
 
@@ -47,6 +66,11 @@ export function WithdrawalSection() {
 
     if (amountXAF > walletBalanceXAF) {
       toast.error("Insufficient balance")
+      return
+    }
+
+    if (!canWithdraw) {
+      toast.error(withdrawalReason || "Withdrawal requirements are not complete yet")
       return
     }
 
@@ -102,8 +126,9 @@ export function WithdrawalSection() {
           <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg p-4">
             <h4 className="text-amber-400 font-semibold mb-2">Withdrawal Rules</h4>
             <div className="text-sm text-amber-200/80 space-y-1">
-              <p>New users must wait 1 month before the first withdrawal request.</p>
-              <p>Regular users can submit reviewed withdrawal requests.</p>
+              <p>First withdrawal opens 30 days after the first machine purchase.</p>
+              <p>Approved KYC is required before any standard withdrawal request.</p>
+              <p>Approved requests are reviewed in less than 24 hours.</p>
               <p>Minimum amount: {formatMoney(minWithdrawalXAF)}</p>
             </div>
           </div>
@@ -164,6 +189,7 @@ export function WithdrawalSection() {
               !form.amount ||
               !form.method ||
               !form.accountDetails.trim() ||
+              !canWithdraw ||
               amountXAF < minWithdrawalXAF ||
               amountXAF > walletBalanceXAF
             }
@@ -171,6 +197,9 @@ export function WithdrawalSection() {
           >
             {processing ? "Processing..." : "Request Withdrawal"}
           </Button>
+          {!canWithdraw && withdrawalReason && (
+            <p className="text-xs text-red-300">{withdrawalReason}</p>
+          )}
         </div>
       </CardContent>
     </Card>

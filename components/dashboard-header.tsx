@@ -3,13 +3,11 @@
 
 import { useAuth } from "@/hooks/use-auth"
 import { Button } from "@/components/ui/button"
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { LogOut, Settings, Wallet, Users, Shield, Menu, X, CheckCircle, AlertCircle, Clock, Cpu, Bell } from "lucide-react"
+import { LogOut, Wallet, Users, Shield, CheckCircle, AlertCircle, Clock, Cpu } from "lucide-react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { authService } from "@/lib/auth"
 import { useState, useEffect } from "react"
-import { ProfileModal } from "@/components/profile-modal"
 import { VerificationModal } from "@/components/verification-modal"
 import { supabase } from "@/lib/supabase"
 import { toast } from "sonner"
@@ -24,8 +22,6 @@ export function DashboardHeader() {
   const { t } = useLanguage()
   const { user, signOut } = useAuth()
   const router = useRouter()
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
-  const [profileModalOpen, setProfileModalOpen] = useState(false)
   const [verificationModalOpen, setVerificationModalOpen] = useState(false)
   const [verificationStatus, setVerificationStatus] = useState<string>("pending")
   const [machinePurchaseDays, setMachinePurchaseDays] = useState<number>(0)
@@ -143,14 +139,6 @@ export function DashboardHeader() {
     if (user?.user_metadata?.username) return user.user_metadata.username
     if (user?.email) return user.email.split("@")[0]
     return "User"
-  }
-
-  // Get user's first initial for avatar
-  const getUserInitial = () => {
-    if (user?.user_metadata?.full_name) return user.user_metadata.full_name.charAt(0).toUpperCase()
-    if (user?.user_metadata?.username) return user.user_metadata.username.charAt(0).toUpperCase()
-    if (user?.email) return user.email.charAt(0).toUpperCase()
-    return "U"
   }
 
   // Get verification badge color and icon
@@ -342,145 +330,30 @@ export function DashboardHeader() {
 
               <NotificationBell />
 
-              <div className="flex items-center space-x-2">
-                <Avatar
-                  className="h-7 w-7 lg:h-8 lg:w-8 border-2 border-cyan-500/20 cursor-pointer hover:border-cyan-500/40 transition-colors"
-                  onClick={() => setProfileModalOpen(true)}
-                >
-                  <AvatarFallback className="bg-gradient-to-r from-cyan-500 to-blue-500 text-white text-xs lg:text-sm">
-                    {getUserInitial()}
-                  </AvatarFallback>
-                </Avatar>
-
-                <Button variant="ghost" size="sm" onClick={handleSignOut} className="text-slate-400 hover:text-red-400">
-                  <LogOut className="h-4 w-4 lg:mr-2" />
-                  <span className="hidden lg:inline">{t("signOut")}</span>
-                </Button>
-              </div>
+              <Button variant="ghost" size="sm" onClick={handleSignOut} className="text-slate-400 hover:text-red-400">
+                <LogOut className="h-4 w-4 lg:mr-2" />
+                <span className="hidden lg:inline">{t("signOut")}</span>
+              </Button>
             </div>
             )}
 
-            {/* Mobile Menu Button */}
+            {/* Mobile Header Actions */}
             <div className="md:hidden flex items-center space-x-2">
-              {/* Mobile Verification Badge */}
-              <div 
+              <div
                 className={`flex items-center space-x-1 px-2 py-1 rounded-full ${verificationBadge.bgColor} border ${verificationBadge.borderColor} cursor-pointer hover:opacity-80 transition-opacity`}
                 onClick={handleVerificationClick}
               >
                 {verificationBadge.icon}
                 <span className={`text-xs font-medium ${verificationBadge.color}`}>
-                  {verificationStatus === 'verified' ? '✓' : '!'}
+                  {verificationStatus === 'verified' ? 'OK' : '!'}
                 </span>
               </div>
-
-              <Avatar
-                className="h-7 w-7 border-2 border-cyan-500/20 cursor-pointer hover:border-cyan-500/40 transition-colors"
-                onClick={() => setProfileModalOpen(true)}
-              >
-                <AvatarFallback className="bg-gradient-to-r from-cyan-500 to-blue-500 text-white text-xs">
-                  {getUserInitial()}
-                </AvatarFallback>
-              </Avatar>
               {isMobile === true && <NotificationBell />}
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                className="text-slate-400"
-              >
-                {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-              </Button>
             </div>
-          </div>
-
-          {/* Mobile Menu */}
-          {mobileMenuOpen && (
-            <div className="md:hidden mt-4 pb-4 border-t border-slate-800">
-              <div className="flex flex-col space-y-2 pt-4">
-                <div className="text-slate-400 text-sm mb-2 px-2">Welcome, {getDisplayName()}</div>
-                <div className="px-2">
-                  <LanguageSwitcher />
-                </div>
-
-                <InstallAppButton fullWidth className="justify-start cr-outline-button" />
-
-                {/* Mobile Verification Button */}
-                <Button
-                  variant="ghost"
-                  onClick={handleVerificationClick}
-                  className={`w-full justify-start ${verificationStatus === 'verified' ? 'text-green-400 hover:text-green-300' : 
-                    !hasPurchasedMachine ? 'text-red-400 hover:text-red-300' :
-                    machinePurchaseDays < 7 ? 'text-yellow-400 hover:text-yellow-300' :
-                    'text-cyan-400 hover:text-cyan-300'}`}
-                >
-                  {verificationBadge.icon}
-                  <span className="ml-3">
-                    {verificationBadge.text}
-                  </span>
-                </Button>
-
-                <Link href="/social-links" onClick={() => setMobileMenuOpen(false)}>
-                  <Button variant="ghost" className="w-full justify-start text-slate-400 hover:text-cyan-400">
-                    <Users className="h-4 w-4 mr-3" />
-                    {t("socialLinks")}
-                  </Button>
-                </Link>
-
-                <Link href="/referrals" onClick={() => setMobileMenuOpen(false)}>
-                  <Button variant="ghost" className="w-full justify-start text-slate-400 hover:text-purple-400">
-                    <Users className="h-4 w-4 mr-3" />
-                    {t("referrals")}
-                  </Button>
-                </Link>
-
-                <Link href="/wallet" onClick={() => setMobileMenuOpen(false)}>
-                  <Button variant="ghost" className="w-full justify-start text-slate-400 hover:text-green-400">
-                    <Wallet className="h-4 w-4 mr-3" />
-                    {t("wallet")}
-                  </Button>
-                </Link>
-
-                {isAdmin && (
-                  <Link href="/admin" onClick={() => setMobileMenuOpen(false)}>
-                    <Button variant="ghost" className="w-full justify-start text-slate-400 hover:text-orange-400">
-                      <Shield className="h-4 w-4 mr-3" />
-                      {t("admin")}
-                    </Button>
-                  </Link>
-                )}
-
-                <div className="flex items-center justify-start px-3 py-2 text-slate-400">
-                  <Bell className="h-4 w-4 mr-3" />
-                  <span>{t("notifications")}</span>
-                </div>
-
-                <Button
-                  variant="ghost"
-                  className="w-full justify-start text-slate-400 hover:text-cyan-400"
-                  onClick={() => {
-                    setProfileModalOpen(true)
-                    setMobileMenuOpen(false)
-                  }}
-                >
-                  <Settings className="h-4 w-4 mr-3" />
-                  Profile Settings
-                </Button>
-
-                <Button
-                  variant="ghost"
-                  onClick={handleSignOut}
-                  className="w-full justify-start text-slate-400 hover:text-red-400 mt-4 border-t border-slate-800 pt-4"
-                >
-                  <LogOut className="h-4 w-4 mr-3" />
-                  {t("signOut")}
-                </Button>
-              </div>
-            </div>
-          )}
+        </div>
         </div>
       </header>
 
-      <ProfileModal open={profileModalOpen} onOpenChange={setProfileModalOpen} />
       <VerificationModal 
         open={verificationModalOpen} 
         onOpenChange={setVerificationModalOpen}

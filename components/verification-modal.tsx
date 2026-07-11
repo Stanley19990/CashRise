@@ -245,7 +245,7 @@ export function VerificationModal({ open, onOpenChange, onVerificationComplete }
             <span>Account Verification Required</span>
           </DialogTitle>
           <DialogDescription className="text-slate-400">
-            Complete verification to unlock withdrawals and secure your account
+            Submit verification for admin review before withdrawals can be unlocked
           </DialogDescription>
         </DialogHeader>
 
@@ -437,7 +437,7 @@ export function VerificationModal({ open, onOpenChange, onVerificationComplete }
                 className="flex-1 bg-green-500/10 text-green-400 border border-green-500/20 cursor-not-allowed"
               >
                 <CheckCircle className="h-4 w-4 mr-2" />
-                Verification Complete
+                Submitted for Review
               </Button>
             ) : (
               <>

@@ -31,6 +31,9 @@ export default function WalletPage() {
   const [transactions, setTransactions] = useState<any[]>([])
   const [referrals, setReferrals] = useState<any[]>([])
   const [canWithdraw, setCanWithdraw] = useState(false)
+  const [withdrawalReason, setWithdrawalReason] = useState("")
+  const [withdrawalUnlockDate, setWithdrawalUnlockDate] = useState<string | null>(null)
+  const [hasInstantWithdrawal, setHasInstantWithdrawal] = useState(false)
   const [withdrawAmount, setWithdrawAmount] = useState("")
   const [depositAmount, setDepositAmount] = useState("")
   const [showDepositMethods, setShowDepositMethods] = useState(false)
@@ -55,11 +58,24 @@ export default function WalletPage() {
       if (walletError) throw walletError
       setWalletData(wallet)
 
-      if (wallet?.created_at) {
-        const createdAt = new Date(wallet.created_at)
-        const oneMonthLater = new Date(createdAt)
-        oneMonthLater.setMonth(createdAt.getMonth() + 1)
-        setCanWithdraw(new Date() >= oneMonthLater)
+      const { data: sessionData } = await supabase.auth.getSession()
+      const eligibilityResponse = await fetch("/api/withdrawals/request", {
+        method: "GET",
+        headers: {
+          ...(sessionData.session?.access_token ? { Authorization: `Bearer ${sessionData.session.access_token}` } : {})
+        }
+      })
+      const eligibility = await eligibilityResponse.json().catch(() => ({}))
+      if (eligibilityResponse.ok && eligibility.success) {
+        setCanWithdraw(Boolean(eligibility.eligible))
+        setWithdrawalReason(eligibility.reason || "")
+        setWithdrawalUnlockDate(eligibility.unlockDate || null)
+        setHasInstantWithdrawal(Boolean(eligibility.hasInstantAccess))
+      } else {
+        setCanWithdraw(false)
+        setWithdrawalReason(eligibility.error || "Unable to check withdrawal eligibility")
+        setWithdrawalUnlockDate(null)
+        setHasInstantWithdrawal(false)
       }
 
       const { data: txs, error: txError } = await supabase
@@ -158,7 +174,7 @@ export default function WalletPage() {
     }
 
     if (!canWithdraw) {
-      toast.error("As a new user you need to make at least one month in the app before your first withdrawal request.")
+      toast.error(withdrawalReason || "Withdrawal requirements are not complete yet.")
       return
     }
 
@@ -284,8 +300,13 @@ export default function WalletPage() {
               <div className="p-6 cr-glass rounded-2xl">
                 <h3 className="font-bold text-cyan-200 text-lg mb-2">Withdrawals</h3>
                 <p className="text-slate-400 text-sm mb-4">
-                  Withdrawals are available once you have completed 1 month on the platform. Requests are reviewed by admin.
+                  Withdrawals open 30 days after your first machine purchase and after approved KYC. Approved requests are reviewed in less than 24 hours.
                 </p>
+                {hasInstantWithdrawal && (
+                  <div className="mb-4 rounded-2xl border border-emerald-400/20 bg-emerald-500/10 p-3 text-sm text-emerald-200">
+                    Instant withdrawal access is enabled for this account.
+                  </div>
+                )}
 
                 <div className="bg-slate-900/60 rounded-2xl p-4 mb-4 border border-cyan-400/10">
                   <p className="text-slate-300 text-sm">Available Balance</p>
@@ -354,7 +375,10 @@ export default function WalletPage() {
 
                 {!canWithdraw && (
                   <p className="text-xs text-red-400 mt-2">
-                    New users must wait 1 month before submitting the first withdrawal request.
+                    {withdrawalReason ||
+                      (withdrawalUnlockDate
+                        ? `Withdrawal unlock date: ${formatDate(withdrawalUnlockDate)}`
+                        : "Complete KYC and wait 30 days from your first machine purchase.")}
                   </p>
                 )}
               </div>

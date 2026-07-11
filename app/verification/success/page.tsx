@@ -64,7 +64,7 @@ export default function VerificationSuccess() {
           <CardContent className="pt-6">
             <div className="text-center">
               <Shield className="h-12 w-12 text-yellow-400 mx-auto mb-4" />
-              <h3 className="text-lg font-semibold text-white mb-2">Verification Complete</h3>
+              <h3 className="text-lg font-semibold text-white mb-2">Verification Submitted</h3>
               <p className="text-slate-400 mb-4">Please log in to view your verification status</p>
               <Button onClick={() => router.push("/login")} className="w-full">
                 Go to Login

@@ -35,10 +35,11 @@ export async function POST(request: NextRequest) {
 
     const data = await response.json().catch(() => ({}))
     if (!response.ok) {
-      return NextResponse.json(
-        { success: false, error: data?.message || "Failed to check payment status" },
-        { status: 502 }
-      )
+      console.warn("Futurapay status check pending or unavailable:", data)
+      return NextResponse.json({
+        success: true,
+        status: "pending"
+      })
     }
 
     const normalizedStatus = String(data?.status || data?.data?.status || "pending").toLowerCase()
@@ -117,6 +118,6 @@ export async function POST(request: NextRequest) {
     })
   } catch (error: any) {
     console.error("International checkout status error:", error)
-    return NextResponse.json({ success: false, error: error.message || "Status check failed" }, { status: 500 })
+    return NextResponse.json({ success: true, status: "pending" })
   }
 }
