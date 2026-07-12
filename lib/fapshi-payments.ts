@@ -9,8 +9,16 @@ export const normalizeFapshiStatus = (status: string | null | undefined) => {
     return "successful"
   }
 
-  if (["failed", "fail", "canceled", "cancelled", "expired"].includes(normalized)) {
+  if (["failed", "fail"].includes(normalized)) {
     return "failed"
+  }
+
+  if (["canceled", "cancelled"].includes(normalized)) {
+    return "cancelled"
+  }
+
+  if (normalized === "expired") {
+    return "expired"
   }
 
   if (["created", "pending", "processing", "in_progress"].includes(normalized)) {
@@ -18,6 +26,25 @@ export const normalizeFapshiStatus = (status: string | null | undefined) => {
   }
 
   return normalized
+}
+
+export const FAPSHI_CONFIRMATION_GRACE_MS = 30 * 60 * 1000
+
+export const isFapshiDeferredFailureStatus = (status: string | null | undefined) => {
+  return status === "cancelled" || status === "expired"
+}
+
+export const shouldKeepFapshiPaymentPending = (
+  status: string | null | undefined,
+  createdAt?: string | null,
+  now = Date.now()
+) => {
+  if (!isFapshiDeferredFailureStatus(status) || !createdAt) return false
+
+  const createdAtMs = new Date(createdAt).getTime()
+  if (!Number.isFinite(createdAtMs)) return false
+
+  return now - createdAtMs < FAPSHI_CONFIRMATION_GRACE_MS
 }
 
 export const extractFapshiStatus = (payload: any) => {

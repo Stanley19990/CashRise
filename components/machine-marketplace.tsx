@@ -42,6 +42,19 @@ const machineImageMap: Record<string, string> = {
   "8": "/images/Generated Image September 16, 2025 - 1_56PM(3).png"
 }
 
+type PendingMachinePayment = {
+  transId: string
+  externalId?: string
+  mode?: string
+  machineId?: string | null
+  createdAt?: number
+  lastCheckedAt?: number
+}
+
+const ACTIVE_PAYMENT_POLL_MS = 5000
+const ACTIVE_PAYMENT_TIMEOUT_MS = 30 * 60 * 1000
+const PENDING_PAYMENT_STORAGE_MS = 45 * 60 * 1000
+
 export function MachineMarketplace({ onPurchaseSuccess }: MachineMarketplaceProps) {
   const { user, refreshUser } = useAuth()
   const { formatMoney } = useCurrency()
@@ -58,6 +71,27 @@ export function MachineMarketplace({ onPurchaseSuccess }: MachineMarketplaceProp
   const [pollingInterval, setPollingInterval] = useState<NodeJS.Timeout | null>(null)
   const repairRanRef = useRef(false)
   const pendingStorageKey = user ? `pending_payment_${user.id}` : null
+
+  const readPendingPayment = (): PendingMachinePayment | null => {
+    if (!pendingStorageKey || typeof window === "undefined") return null
+
+    try {
+      const stored = safeStorageGet(window.localStorage, pendingStorageKey)
+      if (!stored) return null
+
+      const parsed = JSON.parse(stored) as PendingMachinePayment
+      if (!parsed?.transId) return null
+
+      if (parsed.createdAt && Date.now() - parsed.createdAt > PENDING_PAYMENT_STORAGE_MS) {
+        window.localStorage.removeItem(pendingStorageKey)
+        return null
+      }
+
+      return parsed
+    } catch {
+      return null
+    }
+  }
 
   // Fetch machines from database
   const fetchMachinesFromDatabase = async () => {
@@ -112,16 +146,12 @@ export function MachineMarketplace({ onPurchaseSuccess }: MachineMarketplaceProp
     fetchMachinesFromDatabase()
     if (user) {
       fetchUserMachines()
-      try {
-        const stored = pendingStorageKey ? safeStorageGet(window.localStorage, pendingStorageKey) : null
-        if (stored) {
-          const parsed = JSON.parse(stored)
-          if (parsed?.transId) {
-            setActivePaymentTransId(parsed.transId)
-          }
+      const pendingPayment = readPendingPayment()
+      if (pendingPayment?.transId) {
+        setActivePaymentTransId(pendingPayment.transId)
+        if (pendingPayment.machineId) {
+          setPurchasing(pendingPayment.machineId)
         }
-      } catch {
-        // ignore storage errors
       }
       if (!repairRanRef.current) {
         repairRanRef.current = true
@@ -140,22 +170,37 @@ export function MachineMarketplace({ onPurchaseSuccess }: MachineMarketplaceProp
   }, [user])
 
   useEffect(() => {
-    if (!user || !activePaymentTransId) return
-    const handleVisibility = async () => {
+    if (!user) return
+
+    const resumePendingPayment = async () => {
+      const pendingPayment = readPendingPayment()
+      const transId = activePaymentTransId || pendingPayment?.transId
+      if (!transId) return
+
+      if (pendingPayment?.machineId) {
+        setPurchasing(pendingPayment.machineId)
+      }
+      setActivePaymentTransId(transId)
+      await checkPaymentStatus(transId)
+    }
+
+    const handleVisibility = () => {
       if (document.visibilityState === "visible") {
-        const { data: sessionData } = await supabase.auth.getSession()
-        fetch('/api/payments/reconcile', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            ...(sessionData.session?.access_token ? { Authorization: `Bearer ${sessionData.session.access_token}` } : {})
-          },
-          body: JSON.stringify({ transId: activePaymentTransId })
-        }).catch(() => null)
+        resumePendingPayment().catch(() => null)
       }
     }
+
+    const handleFocus = () => {
+      resumePendingPayment().catch(() => null)
+    }
+
     document.addEventListener("visibilitychange", handleVisibility)
-    return () => document.removeEventListener("visibilitychange", handleVisibility)
+    window.addEventListener("focus", handleFocus)
+
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibility)
+      window.removeEventListener("focus", handleFocus)
+    }
   }, [user, activePaymentTransId])
 
   useEffect(() => {
@@ -194,18 +239,18 @@ export function MachineMarketplace({ onPurchaseSuccess }: MachineMarketplaceProp
     console.log('🔄 Starting payment status polling for:', activePaymentTransId)
     const interval = setInterval(async () => {
       await checkPaymentStatus(activePaymentTransId)
-    }, 3000) // Poll every 3 seconds
+    }, ACTIVE_PAYMENT_POLL_MS)
 
     setPollingInterval(interval)
 
-    // Stop polling after 10 minutes to allow user to confirm payment
+    // Stop active polling after the confirmation window, but keep the pending record
+    // so the payment is checked again when the user returns to the app.
     const timeout = setTimeout(() => {
       if (interval) clearInterval(interval)
       setActivePaymentTransId(null)
       setPurchasing(null)
-      if (pendingStorageKey) localStorage.removeItem(pendingStorageKey)
-      toast.info("Payment verification timed out. We'll keep checking when you return.")
-    }, 10 * 60 * 1000)
+      toast.info("Payment is still pending. We'll keep checking when you return.")
+    }, ACTIVE_PAYMENT_TIMEOUT_MS)
 
     return () => {
       clearInterval(interval)
@@ -292,6 +337,16 @@ export function MachineMarketplace({ onPurchaseSuccess }: MachineMarketplaceProp
         setPurchasing(null)
         if (pendingStorageKey) localStorage.removeItem(pendingStorageKey)
         toast.error("❌ Payment failed. Please try again.")
+      }
+      if (paymentStatus === 'pending' && pendingStorageKey) {
+        const pendingPayment = readPendingPayment()
+        if (pendingPayment?.transId === transId) {
+          safeStorageSet(
+            window.localStorage,
+            pendingStorageKey,
+            JSON.stringify({ ...pendingPayment, lastCheckedAt: Date.now() })
+          )
+        }
       }
       // If still pending, continue polling
     } catch (error) {
@@ -382,7 +437,13 @@ export function MachineMarketplace({ onPurchaseSuccess }: MachineMarketplaceProp
       safeStorageSet(
         window.localStorage,
         pendingStorageKey,
-        JSON.stringify({ transId, externalId, mode: "direct-pay", createdAt: Date.now() })
+        JSON.stringify({
+          transId,
+          externalId,
+          mode: "direct-pay",
+          machineId: selectedMachine?.id || null,
+          createdAt: Date.now()
+        })
       )
     }
 

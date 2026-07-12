@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from "next/server"
 import crypto from "crypto"
-import { ensureFapshiTransaction, normalizeFapshiStatus } from "@/lib/fapshi-payments"
+import {
+  ensureFapshiTransaction,
+  isFapshiDeferredFailureStatus,
+  normalizeFapshiStatus,
+  shouldKeepFapshiPaymentPending
+} from "@/lib/fapshi-payments"
 import { fulfillMachinePurchase } from "@/lib/payment-fulfillment"
 import { createNotificationAndPush } from "@/lib/push-server"
 import { createServiceClient } from "@/lib/server-auth"
@@ -50,10 +55,14 @@ export async function POST(request: NextRequest) {
     processedWebhooks.add(transId)
     setTimeout(() => processedWebhooks.delete(transId), 10 * 60 * 1000)
 
-    const normalizedStatus = normalizeFapshiStatus(status)
+    const reportedStatus = normalizeFapshiStatus(status)
+    const transactionRecord = await ensureFapshiTransaction(supabase, webhookData)
+    const normalizedStatus = shouldKeepFapshiPaymentPending(reportedStatus, transactionRecord?.created_at)
+      ? "pending"
+      : isFapshiDeferredFailureStatus(reportedStatus)
+        ? "failed"
+        : reportedStatus
     const isSuccess = normalizedStatus === "successful"
-
-    await ensureFapshiTransaction(supabase, webhookData)
 
     const { error: updateError } = await supabase
       .from("transactions")

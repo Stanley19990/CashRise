@@ -1,5 +1,11 @@
 import { NextRequest, NextResponse } from "next/server"
-import { ensureFapshiTransaction, extractFapshiStatus, normalizeFapshiStatus } from "@/lib/fapshi-payments"
+import {
+  ensureFapshiTransaction,
+  extractFapshiStatus,
+  isFapshiDeferredFailureStatus,
+  normalizeFapshiStatus,
+  shouldKeepFapshiPaymentPending
+} from "@/lib/fapshi-payments"
 import { fulfillMachinePurchase } from "@/lib/payment-fulfillment"
 import { createNotificationAndPush } from "@/lib/push-server"
 import { createServiceClient, requireAuthenticatedUser } from "@/lib/server-auth"
@@ -48,7 +54,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const normalizedStatus = normalizeFapshiStatus(extractFapshiStatus(responseData))
+    const reportedStatus = normalizeFapshiStatus(extractFapshiStatus(responseData))
     let { data: transaction } = await supabase
       .from("transactions")
       .select("id, user_id, amount, type, external_id, metadata, created_at")
@@ -69,6 +75,12 @@ export async function POST(request: NextRequest) {
     if (transaction.user_id !== auth.user.id) {
       return NextResponse.json({ success: false, error: "Transaction user mismatch" }, { status: 403 })
     }
+
+    const normalizedStatus = shouldKeepFapshiPaymentPending(reportedStatus, transaction.created_at)
+      ? "pending"
+      : isFapshiDeferredFailureStatus(reportedStatus)
+        ? "failed"
+        : reportedStatus
 
     await supabase
       .from("transactions")
@@ -109,6 +121,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       status: normalizedStatus,
+      reportedStatus,
+      pendingGrace: normalizedStatus === "pending" && reportedStatus !== "pending",
       recovered: Boolean((transaction as any)?.metadata?.recovered_from_fapshi),
       fulfillment
     })
