@@ -118,6 +118,39 @@ export async function POST(request: NextRequest) {
     // Generate unique external ID
     const externalId = `MACHINE_${machineId}_${userId}_${Date.now()}`
 
+    const transactionMetadata = {
+      machine_id: machineId,
+      machine_name: machineName || machine.name,
+      original_price: machine.price,
+      discounted_price: correctPrice,
+      discount_applied: correctPrice !== machine.price,
+      mode: 'direct-pay'
+    }
+
+    const { data: pendingTransaction, error: pendingTxError } = await supabase
+      .from('transactions')
+      .insert({
+        user_id: userId,
+        type: 'machine_purchase',
+        description: `Purchase ${machineName || machine.name}`,
+        amount: -correctPrice,
+        currency: 'XAF',
+        status: 'pending',
+        external_id: externalId,
+        provider: 'fapshi',
+        metadata: transactionMetadata
+      })
+      .select('id')
+      .single()
+
+    if (pendingTxError || !pendingTransaction) {
+      console.error('Payment transaction preparation failed:', pendingTxError)
+      return NextResponse.json(
+        { success: false, error: 'Unable to prepare this payment. Please refresh and try again.' },
+        { status: 500 }
+      )
+    }
+
     // Prepare Fapshi Direct Pay payload.
     // Keep this minimal so Fapshi does not send app-branded email/message content.
     const fapshiPayload = {
@@ -153,6 +186,18 @@ export async function POST(request: NextRequest) {
     if (!response.ok) {
       // Handle specific Fapshi errors
       const errorMessage = responseData.message || responseData.error || 'Payment failed'
+
+      await supabase
+        .from('transactions')
+        .update({
+          status: 'failed',
+          updated_at: new Date().toISOString(),
+          metadata: {
+            ...transactionMetadata,
+            fapshi_error: errorMessage
+          }
+        })
+        .eq('id', pendingTransaction.id)
       
       // Check for insufficient balance
       if (errorMessage.toLowerCase().includes('insufficient') || 
@@ -176,28 +221,40 @@ export async function POST(request: NextRequest) {
       throw new Error(errorMessage)
     }
 
-    // Save transaction to database
-    const { error: dbError } = await supabase.from('transactions').insert({
-      user_id: userId,
-      type: 'machine_purchase',
-      description: `Purchase ${machineName}`,
-      amount: -correctPrice,
-      currency: 'XAF',
-      status: 'pending',
-      external_id: externalId,
-      fapshi_trans_id: responseData.transId,
-      metadata: {
-        machine_id: machineId,
-        machine_name: machineName,
-        original_price: machine.price,
-        discounted_price: correctPrice,
-        discount_applied: correctPrice !== machine.price
-      }
-    })
+    if (!responseData.transId) {
+      await supabase
+        .from('transactions')
+        .update({
+          status: 'failed',
+          updated_at: new Date().toISOString(),
+          metadata: {
+            ...transactionMetadata,
+            fapshi_error: 'Missing Fapshi transaction id'
+          }
+        })
+        .eq('id', pendingTransaction.id)
+
+      return NextResponse.json(
+        { success: false, error: 'Payment request could not be tracked. Please try again.' },
+        { status: 502 }
+      )
+    }
+
+    const { error: dbError } = await supabase
+      .from('transactions')
+      .update({
+        fapshi_trans_id: responseData.transId,
+        provider_transaction_id: responseData.transId,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', pendingTransaction.id)
 
     if (dbError) {
       console.error('❌ Database error:', dbError)
-      // Don't fail the payment if DB save fails
+      return NextResponse.json(
+        { success: false, error: 'Payment request started, but confirmation tracking failed. Please contact support before retrying.' },
+        { status: 500 }
+      )
     } else {
       await createNotificationAndPush(supabase, {
         user_id: userId,

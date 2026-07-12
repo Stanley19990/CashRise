@@ -39,24 +39,28 @@ export function PaymentSelector({
 
   const localAmount = convertXAF(amountXAF)
   const amountLabel = formatMoney(amountXAF)
-  const methods = [
-    ...(country.code === "CM" || country.currency === "XAF"
-      ? [
-          {
-            id: "fapshi",
-            name: "Mobile Money",
-            description: "MTN Mobile Money and Orange Money",
-            icon: Smartphone
-          }
-        ]
-      : []),
-    {
-      id: "futurapay",
-      name: "International Checkout",
-      description: "Cards, wallets, crypto, and international mobile money",
-      icon: CreditCard
-    }
-  ]
+  const isMachinePurchase = transactionType === "machine_purchase" || purpose === "machine_purchase"
+  const isCameroonXAF = country.code === "CM" || country.currency === "XAF"
+  const mobileMoneyMethod = {
+    id: "fapshi",
+    name: "Mobile Money",
+    description: "MTN Mobile Money and Orange Money",
+    icon: Smartphone
+  }
+  const internationalMethod = {
+    id: "futurapay",
+    name: "International Checkout",
+    description: "Cards, wallets, crypto, and international mobile money",
+    icon: CreditCard
+  }
+  const methods = isMachinePurchase
+    ? isCameroonXAF
+      ? [mobileMoneyMethod]
+      : [internationalMethod]
+    : [
+        ...(isCameroonXAF ? [mobileMoneyMethod] : []),
+        internationalMethod
+      ]
 
   const startFuturapay = async () => {
     if (!amountXAF || amountXAF <= 0) {
