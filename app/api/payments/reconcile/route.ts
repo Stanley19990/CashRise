@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import {
   ensureFapshiTransaction,
   extractFapshiStatus,
+  getFapshiPendingGraceUntil,
   isFapshiDeferredFailureStatus,
   normalizeFapshiStatus,
   shouldKeepFapshiPaymentPending
@@ -57,7 +58,7 @@ export async function POST(request: NextRequest) {
     const reportedStatus = normalizeFapshiStatus(extractFapshiStatus(responseData))
     let { data: transaction } = await supabase
       .from("transactions")
-      .select("id, user_id, amount, type, external_id, metadata, created_at")
+      .select("id, user_id, amount, type, external_id, metadata, status, created_at")
       .eq("fapshi_trans_id", transId)
       .eq("user_id", auth.user.id)
       .order("created_at", { ascending: false })
@@ -76,14 +77,23 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: "Transaction user mismatch" }, { status: 403 })
     }
 
-    const normalizedStatus = shouldKeepFapshiPaymentPending(reportedStatus, transaction.created_at)
-      ? "pending"
-      : isFapshiDeferredFailureStatus(reportedStatus)
-        ? "failed"
-        : reportedStatus
+    const alreadySuccessful = transaction.status === "successful"
+    const pendingGraceUntil = getFapshiPendingGraceUntil(reportedStatus, transaction.created_at)
+    const normalizedStatus = alreadySuccessful
+      ? "successful"
+      : shouldKeepFapshiPaymentPending(reportedStatus, transaction.created_at)
+        ? "pending"
+        : isFapshiDeferredFailureStatus(reportedStatus)
+          ? "failed"
+          : reportedStatus
     const statusMetadata = {
       ...(transaction.metadata || {}),
       fapshi_status: reportedStatus,
+      fapshi_pending_grace_until: pendingGraceUntil,
+      cashrise_status_note:
+        normalizedStatus === "pending" && reportedStatus !== "pending"
+          ? "CashRise is holding this payment pending during the confirmation grace window."
+          : null,
       fapshi_medium: responseData?.medium || responseData?.data?.medium || transaction.metadata?.fapshi_medium || null,
       fapshi_amount: responseData?.amount || responseData?.data?.amount || null,
       fapshi_revenue: responseData?.revenue || responseData?.data?.revenue || null,

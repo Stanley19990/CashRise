@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import crypto from "crypto"
 import {
   ensureFapshiTransaction,
+  getFapshiPendingGraceUntil,
   isFapshiDeferredFailureStatus,
   normalizeFapshiStatus,
   shouldKeepFapshiPaymentPending
@@ -17,8 +18,6 @@ const supabase = new Proxy({} as ReturnType<typeof createServiceClient>, {
     return (createServiceClient() as any)[prop as keyof ReturnType<typeof createServiceClient>]
   }
 })
-
-const processedWebhooks = new Set<string>()
 
 export async function POST(request: NextRequest) {
   try {
@@ -49,13 +48,6 @@ export async function POST(request: NextRequest) {
     if (!transId) {
       return NextResponse.json({ error: "Missing transId" }, { status: 400 })
     }
-
-    if (processedWebhooks.has(transId)) {
-      return NextResponse.json({ received: true, duplicate: true })
-    }
-
-    processedWebhooks.add(transId)
-    setTimeout(() => processedWebhooks.delete(transId), 10 * 60 * 1000)
 
     let verifiedPayload = webhookData
     if (process.env.FAPSHI_API_USER && process.env.FAPSHI_API_KEY) {
@@ -91,15 +83,24 @@ export async function POST(request: NextRequest) {
 
     const reportedStatus = normalizeFapshiStatus(verifiedPayload.status || verifiedPayload.data?.status || status)
     const transactionRecord = await ensureFapshiTransaction(supabase, verifiedPayload)
-    const normalizedStatus = shouldKeepFapshiPaymentPending(reportedStatus, transactionRecord?.created_at)
-      ? "pending"
-      : isFapshiDeferredFailureStatus(reportedStatus)
-        ? "failed"
-        : reportedStatus
+    const alreadySuccessful = transactionRecord?.status === "successful"
+    const pendingGraceUntil = getFapshiPendingGraceUntil(reportedStatus, transactionRecord?.created_at)
+    const normalizedStatus = alreadySuccessful
+      ? "successful"
+      : shouldKeepFapshiPaymentPending(reportedStatus, transactionRecord?.created_at)
+        ? "pending"
+        : isFapshiDeferredFailureStatus(reportedStatus)
+          ? "failed"
+          : reportedStatus
     const isSuccess = normalizedStatus === "successful"
     const statusMetadata = {
       ...(transactionRecord?.metadata || {}),
       fapshi_status: reportedStatus,
+      fapshi_pending_grace_until: pendingGraceUntil,
+      cashrise_status_note:
+        normalizedStatus === "pending" && reportedStatus !== "pending"
+          ? "CashRise is holding this payment pending during the confirmation grace window."
+          : null,
       fapshi_medium: verifiedPayload.medium || verifiedPayload.data?.medium || transactionRecord?.metadata?.fapshi_medium || null,
       fapshi_amount: verifiedPayload.amount || verifiedPayload.data?.amount || null,
       fapshi_revenue: verifiedPayload.revenue || verifiedPayload.data?.revenue || null,
@@ -117,7 +118,7 @@ export async function POST(request: NextRequest) {
     const { error: updateError } = await supabase
       .from("transactions")
       .update({
-        status: isSuccess ? "successful" : normalizedStatus,
+        status: normalizedStatus,
         metadata: statusMetadata,
         updated_at: new Date().toISOString()
       })

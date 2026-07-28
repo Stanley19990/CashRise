@@ -41,6 +41,15 @@ const getFapshiStatusGraceMs = (status: string | null | undefined) => {
   return 0
 }
 
+export const getFapshiPendingGraceUntil = (status: string | null | undefined, createdAt?: string | null) => {
+  if (!isFapshiDeferredFailureStatus(status) || !createdAt) return null
+
+  const createdAtMs = new Date(createdAt).getTime()
+  if (!Number.isFinite(createdAtMs)) return null
+
+  return new Date(createdAtMs + getFapshiStatusGraceMs(status)).toISOString()
+}
+
 export const shouldKeepFapshiPaymentPending = (
   status: string | null | undefined,
   createdAt?: string | null,
@@ -80,7 +89,7 @@ export async function ensureFapshiTransaction(supabase: SupabaseClient, payload:
 
   const { data: existing } = await supabase
     .from("transactions")
-    .select("id, user_id, amount, type, external_id, metadata, created_at")
+    .select("id, user_id, amount, type, external_id, metadata, status, created_at")
     .eq("fapshi_trans_id", transId)
     .order("created_at", { ascending: false })
     .limit(1)
@@ -117,7 +126,7 @@ export async function ensureFapshiTransaction(supabase: SupabaseClient, payload:
         recovered_from_fapshi: true
       }
     })
-    .select("id, user_id, amount, type, external_id, metadata, created_at")
+    .select("id, user_id, amount, type, external_id, metadata, status, created_at")
     .single()
 
   if (error) {
