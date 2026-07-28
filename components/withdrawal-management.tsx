@@ -58,7 +58,7 @@ export function WithdrawalManagement() {
     fetchWithdrawals()
   }, [])
 
-  const updateWithdrawalStatus = async (withdrawalId: string, status: 'completed' | 'rejected') => {
+  const updateWithdrawalStatus = async (withdrawalId: string, status: 'approved' | 'rejected') => {
     setProcessing(withdrawalId)
     
     try {
@@ -67,7 +67,7 @@ export function WithdrawalManagement() {
         processed_at: new Date().toISOString()
       }
 
-      if (status === 'completed') {
+      if (status === 'approved') {
         const withdrawal = withdrawals.find(w => w.id === withdrawalId)
         if (withdrawal) {
           const { data: userData, error: fetchError } = await supabase
@@ -103,7 +103,7 @@ export function WithdrawalManagement() {
 
       if (error) throw error
 
-      toast.success(`Withdrawal ${status === 'completed' ? 'approved' : 'rejected'} successfully!`)
+      toast.success(`Withdrawal ${status === 'approved' ? 'approved' : 'rejected'} successfully!`)
       await fetchWithdrawals()
     } catch (error) {
       console.error('Error updating withdrawal status:', error)
@@ -221,7 +221,7 @@ export function WithdrawalManagement() {
                       <Button 
                         size="icon" 
                         className="h-8 w-8 bg-green-500 hover:bg-green-600"
-                        onClick={() => updateWithdrawalStatus(withdrawal.id, 'completed')}
+                        onClick={() => updateWithdrawalStatus(withdrawal.id, 'approved')}
                         disabled={processing === withdrawal.id}
                       >
                         {processing === withdrawal.id ? (
@@ -262,7 +262,7 @@ export function WithdrawalManagement() {
             </div>
             <div className="bg-slate-800/30 rounded-lg p-3">
               <div className="text-lg font-bold text-green-400">
-                {withdrawals.filter(w => w.status === 'completed').length}
+                {withdrawals.filter(w => w.status === 'approved' || w.status === 'completed').length}
               </div>
               <div className="text-xs text-slate-400">Completed</div>
             </div>

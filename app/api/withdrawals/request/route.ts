@@ -199,8 +199,6 @@ export async function POST(request: NextRequest) {
     }
 
     const isInstantWithdrawal = eligibility.hasInstantAccess
-    const withdrawalStatus = isInstantWithdrawal ? "completed" : "pending"
-    const processedAt = isInstantWithdrawal ? new Date().toISOString() : null
 
     const { data: withdrawal, error: insertError } = await supabase
       .from("withdrawals")
@@ -216,8 +214,8 @@ export async function POST(request: NextRequest) {
           account_details: cleanAccountDetails,
           instant_withdrawal: isInstantWithdrawal
         },
-        status: withdrawalStatus,
-        processed_at: processedAt
+        status: "pending",
+        processed_at: null
       })
       .select("id, amount, status, created_at")
       .single()
@@ -229,6 +227,7 @@ export async function POST(request: NextRequest) {
     if (isInstantWithdrawal) {
       const currentBalance = Number(userData.wallet_balance || 0)
       const nextBalance = currentBalance - amount
+      const processedAt = new Date().toISOString()
 
       const { data: updatedUser, error: balanceError } = await supabase
         .from("users")
@@ -252,6 +251,53 @@ export async function POST(request: NextRequest) {
         )
       }
 
+      const completedPayload = {
+        status: "completed",
+        processed_at: processedAt,
+        payment_details: {
+          account_details: cleanAccountDetails,
+          instant_withdrawal: true,
+          instant_processed_at: processedAt
+        }
+      }
+      const approvedPayload = {
+        ...completedPayload,
+        status: "approved"
+      }
+
+      let finalWithdrawalStatus = "completed"
+      let { data: finalizedWithdrawal, error: finalizeError } = await supabase
+        .from("withdrawals")
+        .update(completedPayload)
+        .eq("id", withdrawal.id)
+        .select("id, amount, status, created_at, processed_at")
+        .single()
+
+      if (finalizeError) {
+        finalWithdrawalStatus = "approved"
+        const approvedResult = await supabase
+          .from("withdrawals")
+          .update(approvedPayload)
+          .eq("id", withdrawal.id)
+          .select("id, amount, status, created_at, processed_at")
+          .single()
+
+        finalizedWithdrawal = approvedResult.data
+        finalizeError = approvedResult.error
+      }
+
+      if (finalizeError || !finalizedWithdrawal) {
+        await supabase
+          .from("users")
+          .update({ wallet_balance: currentBalance })
+          .eq("id", auth.user.id)
+
+        return NextResponse.json(
+          { success: false, error: finalizeError?.message || "Unable to finalize instant withdrawal" },
+          { status: 500 }
+        )
+      }
+
       const { error: transactionError } = await supabase.from("transactions").insert({
         user_id: auth.user.id,
         type: "withdrawal",
@@ -263,6 +309,7 @@ export async function POST(request: NextRequest) {
           withdrawal_id: withdrawal.id,
           method: cleanMethod,
           instant_withdrawal: true,
+          withdrawal_status: finalWithdrawalStatus,
           previous_balance: currentBalance,
           new_balance: nextBalance
         }
@@ -276,11 +323,7 @@ export async function POST(request: NextRequest) {
         success: true,
         instant: true,
         message: "Withdrawal successful",
-        withdrawal: {
-          ...withdrawal,
-          status: "completed",
-          processed_at: processedAt
-        },
+        withdrawal: finalizedWithdrawal,
         walletBalance: Number(updatedUser.wallet_balance || nextBalance)
       })
     }

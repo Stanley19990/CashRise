@@ -125,7 +125,7 @@ export function WalletBalance({ wallet: initialWallet }: { wallet: number }) {
         .from('withdrawals')
         .select('amount')
         .eq('user_id', user.id)
-        .eq('status', 'completed')
+        .in('status', ['approved', 'completed'])
 
       const totalWithdrawals = withdrawals?.reduce((sum, w) => sum + toNumber(w.amount), 0) || 0
 
