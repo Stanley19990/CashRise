@@ -206,7 +206,11 @@ export default function WalletPage() {
         throw new Error(result.error || "Failed to submit withdrawal request.")
       }
 
-      toast.success(`Withdrawal request submitted for ${formatMoney(amountXAF)}.`)
+      toast.success(
+        result.instant
+          ? `Withdrawal successful. ${formatMoney(amountXAF)} has been deducted from your balance.`
+          : `Withdrawal request submitted for ${formatMoney(amountXAF)}.`
+      )
       setWithdrawAmount("")
       setWithdrawMethod("")
       setAccountDetails("")
@@ -370,7 +374,13 @@ export default function WalletPage() {
                     !accountDetails.trim()
                   }
                 >
-                  {isWithdrawing ? "Processing..." : canWithdraw ? "Request Withdrawal" : "Withdrawal Locked"}
+                  {isWithdrawing
+                    ? "Processing..."
+                    : hasInstantWithdrawal
+                      ? "Withdraw Instantly"
+                      : canWithdraw
+                        ? "Request Withdrawal"
+                        : "Withdrawal Locked"}
                 </button>
 
                 {!canWithdraw && (

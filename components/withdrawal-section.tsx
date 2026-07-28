@@ -29,6 +29,7 @@ export function WithdrawalSection() {
   const [processing, setProcessing] = useState(false)
   const [canWithdraw, setCanWithdraw] = useState(false)
   const [withdrawalReason, setWithdrawalReason] = useState("")
+  const [hasInstantWithdrawal, setHasInstantWithdrawal] = useState(false)
   const minWithdrawalXAF = 3000
 
   useEffect(() => {
@@ -43,6 +44,7 @@ export function WithdrawalSection() {
       const result = await response.json().catch(() => ({}))
       setCanWithdraw(Boolean(response.ok && result.success && result.eligible))
       setWithdrawalReason(result.reason || result.error || "")
+      setHasInstantWithdrawal(Boolean(response.ok && result.success && result.hasInstantAccess))
     }
 
     loadEligibility()
@@ -102,7 +104,11 @@ export function WithdrawalSection() {
         throw new Error(result.error || "Withdrawal request failed. Please try again.")
       }
 
-      toast.success(`Withdrawal request of ${formatMoney(amountXAF)} submitted successfully.`)
+      toast.success(
+        result.instant
+          ? `Withdrawal successful. ${formatMoney(amountXAF)} has been deducted from your balance.`
+          : `Withdrawal request of ${formatMoney(amountXAF)} submitted successfully.`
+      )
       setForm({ amount: "", method: "", accountDetails: "" })
       await refreshUser()
     } catch (error: any) {
@@ -128,7 +134,7 @@ export function WithdrawalSection() {
             <div className="text-sm text-amber-200/80 space-y-1">
               <p>First withdrawal opens 30 days after the first machine purchase.</p>
               <p>Approved KYC is required before any standard withdrawal request.</p>
-              <p>Approved requests are reviewed in less than 24 hours.</p>
+              <p>{hasInstantWithdrawal ? "Instant withdrawals are processed immediately for this account." : "Approved requests are reviewed in less than 24 hours."}</p>
               <p>Minimum amount: {formatMoney(minWithdrawalXAF)}</p>
             </div>
           </div>
@@ -195,7 +201,7 @@ export function WithdrawalSection() {
             }
             className="w-full bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600"
           >
-            {processing ? "Processing..." : "Request Withdrawal"}
+            {processing ? "Processing..." : hasInstantWithdrawal ? "Withdraw Instantly" : "Request Withdrawal"}
           </Button>
           {!canWithdraw && withdrawalReason && (
             <p className="text-xs text-red-300">{withdrawalReason}</p>

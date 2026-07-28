@@ -3,9 +3,18 @@ import { createServiceClient, requireAuthenticatedUser } from "@/lib/server-auth
 
 const MIN_WITHDRAWAL_XAF = 3000
 const FIRST_WITHDRAWAL_WAIT_DAYS = 30
+const BUILT_IN_INSTANT_WITHDRAWAL_USER_IDS = [
+  "c48142ec-6d81-491c-86b9-89432ae34f62"
+]
 
 const getInstantWithdrawalAllowList = () =>
-  (process.env.INSTANT_WITHDRAWAL_USER_EMAILS || process.env.INSTANT_WITHDRAWAL_USER_IDS || "")
+  [
+    process.env.INSTANT_WITHDRAWAL_USER_IDS,
+    process.env.INSTANT_WITHDRAWAL_USER_EMAILS,
+    ...BUILT_IN_INSTANT_WITHDRAWAL_USER_IDS
+  ]
+    .filter(Boolean)
+    .join(",")
     .split(",")
     .map((item) => item.trim().toLowerCase())
     .filter(Boolean)
@@ -168,24 +177,30 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: "Insufficient balance" }, { status: 400 })
     }
 
-    const { data: pendingWithdrawal, error: pendingError } = await supabase
-      .from("withdrawals")
-      .select("id")
-      .eq("user_id", auth.user.id)
-      .eq("status", "pending")
-      .limit(1)
-      .maybeSingle()
+    if (!eligibility.hasInstantAccess) {
+      const { data: pendingWithdrawal, error: pendingError } = await supabase
+        .from("withdrawals")
+        .select("id")
+        .eq("user_id", auth.user.id)
+        .eq("status", "pending")
+        .limit(1)
+        .maybeSingle()
 
-    if (pendingError) {
-      return NextResponse.json({ success: false, error: pendingError.message }, { status: 500 })
+      if (pendingError) {
+        return NextResponse.json({ success: false, error: pendingError.message }, { status: 500 })
+      }
+
+      if (pendingWithdrawal) {
+        return NextResponse.json(
+          { success: false, error: "You already have a pending withdrawal request awaiting review" },
+          { status: 409 }
+        )
+      }
     }
 
-    if (pendingWithdrawal) {
-      return NextResponse.json(
-        { success: false, error: "You already have a pending withdrawal request awaiting review" },
-        { status: 409 }
-      )
-    }
+    const isInstantWithdrawal = eligibility.hasInstantAccess
+    const withdrawalStatus = isInstantWithdrawal ? "completed" : "pending"
+    const processedAt = isInstantWithdrawal ? new Date().toISOString() : null
 
     const { data: withdrawal, error: insertError } = await supabase
       .from("withdrawals")
@@ -197,9 +212,12 @@ export async function POST(request: NextRequest) {
         method: cleanMethod,
         account_details: cleanAccountDetails,
         payment_method: cleanMethod,
-        payment_details: { account_details: cleanAccountDetails },
-        status: "pending",
-        processed_at: null
+        payment_details: {
+          account_details: cleanAccountDetails,
+          instant_withdrawal: isInstantWithdrawal
+        },
+        status: withdrawalStatus,
+        processed_at: processedAt
       })
       .select("id, amount, status, created_at")
       .single()
@@ -208,7 +226,66 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: insertError.message }, { status: 500 })
     }
 
-    return NextResponse.json({ success: true, withdrawal })
+    if (isInstantWithdrawal) {
+      const currentBalance = Number(userData.wallet_balance || 0)
+      const nextBalance = currentBalance - amount
+
+      const { data: updatedUser, error: balanceError } = await supabase
+        .from("users")
+        .update({ wallet_balance: nextBalance })
+        .eq("id", auth.user.id)
+        .gte("wallet_balance", amount)
+        .select("wallet_balance")
+        .single()
+
+      if (balanceError || !updatedUser) {
+        await supabase
+          .from("withdrawals")
+          .update({ status: "rejected", processed_at: new Date().toISOString() })
+          .eq("id", withdrawal.id)
+
+        const balanceUpdateError = balanceError as { code?: string; message?: string } | null
+        const noBalanceRowUpdated = !updatedUser || balanceUpdateError?.code === "PGRST116"
+        return NextResponse.json(
+          { success: false, error: noBalanceRowUpdated ? "Insufficient balance" : balanceUpdateError?.message || "Unable to deduct balance" },
+          { status: noBalanceRowUpdated ? 400 : 500 }
+        )
+      }
+
+      const { error: transactionError } = await supabase.from("transactions").insert({
+        user_id: auth.user.id,
+        type: "withdrawal",
+        description: "Instant withdrawal completed",
+        amount: -amount,
+        currency: "XAF",
+        status: "completed",
+        metadata: {
+          withdrawal_id: withdrawal.id,
+          method: cleanMethod,
+          instant_withdrawal: true,
+          previous_balance: currentBalance,
+          new_balance: nextBalance
+        }
+      })
+
+      if (transactionError) {
+        console.error("Instant withdrawal transaction log error:", transactionError)
+      }
+
+      return NextResponse.json({
+        success: true,
+        instant: true,
+        message: "Withdrawal successful",
+        withdrawal: {
+          ...withdrawal,
+          status: "completed",
+          processed_at: processedAt
+        },
+        walletBalance: Number(updatedUser.wallet_balance || nextBalance)
+      })
+    }
+
+    return NextResponse.json({ success: true, instant: false, withdrawal })
   } catch (error: any) {
     console.error("Withdrawal request error:", error)
     return NextResponse.json(
