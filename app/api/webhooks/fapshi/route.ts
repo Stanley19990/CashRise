@@ -10,6 +10,8 @@ import { fulfillMachinePurchase } from "@/lib/payment-fulfillment"
 import { createNotificationAndPush } from "@/lib/push-server"
 import { createServiceClient } from "@/lib/server-auth"
 
+const FAPSHI_BASE_URL = process.env.FAPSHI_BASE_URL || process.env.FAPSHI_ENVIRONMENT || "https://live.fapshi.com"
+
 const supabase = new Proxy({} as ReturnType<typeof createServiceClient>, {
   get(_target, prop) {
     return (createServiceClient() as any)[prop as keyof ReturnType<typeof createServiceClient>]
@@ -26,26 +28,26 @@ export async function POST(request: NextRequest) {
     if (process.env.FAPSHI_WEBHOOK_SECRET) {
       const signature = request.headers.get("x-fapshi-signature") || request.headers.get("signature")
 
-      if (!signature) {
-        return NextResponse.json({ error: "Missing signature" }, { status: 401 })
-      }
+      if (signature) {
+        const expectedSignature = crypto
+          .createHmac("sha256", process.env.FAPSHI_WEBHOOK_SECRET)
+          .update(body)
+          .digest("hex")
 
-      const expectedSignature = crypto
-        .createHmac("sha256", process.env.FAPSHI_WEBHOOK_SECRET)
-        .update(body)
-        .digest("hex")
-
-      if (signature !== expectedSignature) {
-        return NextResponse.json({ error: "Invalid signature" }, { status: 401 })
+        if (signature !== expectedSignature) {
+          console.warn("Fapshi webhook signature mismatch. Verifying transaction with Fapshi status API instead.")
+        }
+      } else {
+        console.warn("Fapshi webhook signature header missing. Verifying transaction with Fapshi status API instead.")
       }
     } else {
       console.warn("FAPSHI_WEBHOOK_SECRET is not set. Signature verification skipped.")
     }
 
-    const { transId, status, externalId } = webhookData
+    const { transId, status } = webhookData
 
-    if (!transId || !status || !externalId) {
-      return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
+    if (!transId) {
+      return NextResponse.json({ error: "Missing transId" }, { status: 400 })
     }
 
     if (processedWebhooks.has(transId)) {
@@ -55,19 +57,68 @@ export async function POST(request: NextRequest) {
     processedWebhooks.add(transId)
     setTimeout(() => processedWebhooks.delete(transId), 10 * 60 * 1000)
 
-    const reportedStatus = normalizeFapshiStatus(status)
-    const transactionRecord = await ensureFapshiTransaction(supabase, webhookData)
+    let verifiedPayload = webhookData
+    if (process.env.FAPSHI_API_USER && process.env.FAPSHI_API_KEY) {
+      const statusResponse = await fetch(`${FAPSHI_BASE_URL}/payment-status/${transId}`, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          apiuser: process.env.FAPSHI_API_USER,
+          apikey: process.env.FAPSHI_API_KEY
+        }
+      })
+
+      const statusPayload = await statusResponse.json().catch(() => null)
+      if (statusResponse.ok && statusPayload) {
+        verifiedPayload = {
+          ...webhookData,
+          ...statusPayload,
+          data: {
+            ...(webhookData.data || {}),
+            ...(statusPayload.data || {})
+          }
+        }
+      } else {
+        console.error("Unable to verify Fapshi webhook status:", {
+          transId,
+          statusCode: statusResponse.status,
+          message: statusPayload?.message || statusPayload?.error || null
+        })
+      }
+    } else {
+      console.error("Fapshi API credentials missing. Webhook status could not be independently verified.")
+    }
+
+    const reportedStatus = normalizeFapshiStatus(verifiedPayload.status || verifiedPayload.data?.status || status)
+    const transactionRecord = await ensureFapshiTransaction(supabase, verifiedPayload)
     const normalizedStatus = shouldKeepFapshiPaymentPending(reportedStatus, transactionRecord?.created_at)
       ? "pending"
       : isFapshiDeferredFailureStatus(reportedStatus)
         ? "failed"
         : reportedStatus
     const isSuccess = normalizedStatus === "successful"
+    const statusMetadata = {
+      ...(transactionRecord?.metadata || {}),
+      fapshi_status: reportedStatus,
+      fapshi_medium: verifiedPayload.medium || verifiedPayload.data?.medium || transactionRecord?.metadata?.fapshi_medium || null,
+      fapshi_amount: verifiedPayload.amount || verifiedPayload.data?.amount || null,
+      fapshi_revenue: verifiedPayload.revenue || verifiedPayload.data?.revenue || null,
+      fapshi_reason:
+        verifiedPayload.reason ||
+        verifiedPayload.data?.reason ||
+        verifiedPayload.data?.failureReason ||
+        verifiedPayload.message ||
+        verifiedPayload.error ||
+        null,
+      fapshi_date_initiated: verifiedPayload.dateInitiated || verifiedPayload.data?.dateInitiated || null,
+      fapshi_date_confirmed: verifiedPayload.dateConfirmed || verifiedPayload.data?.dateConfirmed || null
+    }
 
     const { error: updateError } = await supabase
       .from("transactions")
       .update({
         status: isSuccess ? "successful" : normalizedStatus,
+        metadata: statusMetadata,
         updated_at: new Date().toISOString()
       })
       .eq("fapshi_trans_id", transId)

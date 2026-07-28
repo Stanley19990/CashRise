@@ -13,6 +13,30 @@ const getDiscountedPrice = (price: number) => {
   return price
 }
 
+const normalizeFapshiMedium = (medium?: string) => {
+  const normalized = medium?.toLowerCase().trim()
+  if (!normalized) return null
+  if (normalized === 'mobile money' || normalized === 'mtn' || normalized === 'mtn mobile money') return 'mobile money'
+  if (normalized === 'orange money' || normalized === 'orange' || normalized === 'om') return 'orange money'
+  return null
+}
+
+const detectCameroonMobileMoneyMedium = (phone: string) => {
+  const cleanPhone = phone.replace(/\D/g, '').slice(-9)
+  const firstTwo = cleanPhone.slice(0, 2)
+  const firstThree = cleanPhone.slice(0, 3)
+
+  if (firstTwo === '67' || ['650', '651', '652', '653', '654', '680', '681', '682', '683'].includes(firstThree)) {
+    return 'mobile money'
+  }
+
+  if (firstTwo === '69' || ['655', '656', '657', '658', '659'].includes(firstThree)) {
+    return 'orange money'
+  }
+
+  return null
+}
+
 export async function POST(request: NextRequest) {
   try {
     const auth = await requireAuthenticatedUser(request)
@@ -153,10 +177,31 @@ export async function POST(request: NextRequest) {
 
     // Prepare Fapshi Direct Pay payload.
     // Keep this minimal so Fapshi does not send app-branded email/message content.
+    const resolvedMedium = normalizeFapshiMedium(medium) || detectCameroonMobileMoneyMedium(cleanPhone)
+
+    if (!resolvedMedium) {
+      await supabase
+        .from('transactions')
+        .update({
+          status: 'failed',
+          updated_at: new Date().toISOString(),
+          metadata: {
+            ...transactionMetadata,
+            fapshi_error: 'Unable to detect Cameroon mobile money operator'
+          }
+        })
+        .eq('id', pendingTransaction.id)
+
+      return NextResponse.json(
+        { success: false, error: 'Please choose MTN Mobile Money or Orange Money for this number.' },
+        { status: 400 }
+      )
+    }
+
     const fapshiPayload = {
       amount: correctPrice, // Use validated discounted price
       phone: cleanPhone.slice(-9), // Always send last 9 digits
-      ...(medium ? { medium } : {}),
+      medium: resolvedMedium,
       userId: userId,
       externalId: externalId
     }
@@ -245,6 +290,11 @@ export async function POST(request: NextRequest) {
       .update({
         fapshi_trans_id: responseData.transId,
         provider_transaction_id: responseData.transId,
+        metadata: {
+          ...transactionMetadata,
+          fapshi_medium: responseData.medium || responseData.data?.medium || resolvedMedium,
+          fapshi_date_initiated: responseData.dateInitiated || responseData.data?.dateInitiated || null
+        },
         updated_at: new Date().toISOString()
       })
       .eq('id', pendingTransaction.id)

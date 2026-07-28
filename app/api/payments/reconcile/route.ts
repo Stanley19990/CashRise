@@ -81,11 +81,28 @@ export async function POST(request: NextRequest) {
       : isFapshiDeferredFailureStatus(reportedStatus)
         ? "failed"
         : reportedStatus
+    const statusMetadata = {
+      ...(transaction.metadata || {}),
+      fapshi_status: reportedStatus,
+      fapshi_medium: responseData?.medium || responseData?.data?.medium || transaction.metadata?.fapshi_medium || null,
+      fapshi_amount: responseData?.amount || responseData?.data?.amount || null,
+      fapshi_revenue: responseData?.revenue || responseData?.data?.revenue || null,
+      fapshi_reason:
+        responseData?.reason ||
+        responseData?.data?.reason ||
+        responseData?.data?.failureReason ||
+        responseData?.message ||
+        responseData?.error ||
+        null,
+      fapshi_date_initiated: responseData?.dateInitiated || responseData?.data?.dateInitiated || null,
+      fapshi_date_confirmed: responseData?.dateConfirmed || responseData?.data?.dateConfirmed || null
+    }
 
     await supabase
       .from("transactions")
       .update({
         status: normalizedStatus,
+        metadata: statusMetadata,
         updated_at: new Date().toISOString()
       })
       .eq("id", transaction.id)
